@@ -1,0 +1,32 @@
+:root{
+  --font-display:'Tajawal','Segoe UI',system-ui,sans-serif;
+  --font-body:'Almarai','Segoe UI',system-ui,sans-serif;
+  --font-mono:ui-monospace,'SFMono-Regular','Menlo',monospace;
+
+  /* weights */
+  --fw-light:300; /* @kind font */
+  --fw-regular:400; /* @kind font */
+  --fw-medium:500; /* @kind font */
+  --fw-bold:700; /* @kind font */
+  --fw-extra:800; /* @kind font */
+  --fw-black:900; /* @kind font */
+
+  /* type scale (rem) */
+  --text-xs:0.75rem;   /* 12 */
+  --text-sm:0.875rem;  /* 14 */
+  --text-base:1rem;    /* 16 */
+  --text-md:1.125rem;  /* 18 */
+  --text-lg:1.375rem;  /* 22 */
+  --text-xl:1.75rem;   /* 28 */
+  --text-2xl:2.25rem;  /* 36 */
+  --text-3xl:3rem;     /* 48 */
+  --text-4xl:3.75rem;  /* 60 */
+
+  --leading-tight:1.15;
+  --leading-snug:1.35;
+  --leading-normal:1.6;
+
+  --tracking-tight:-0.02em;
+  --tracking-normal:0;
+  --tracking-wide:0.04em;
+}

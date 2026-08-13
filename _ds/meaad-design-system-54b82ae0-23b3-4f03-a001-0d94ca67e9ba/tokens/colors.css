@@ -1,0 +1,78 @@
+:root{
+  /* ===== Brand — Teal (primary) ===== */
+  --teal-50:#E6F7F7;
+  --teal-100:#C2ECEC;
+  --teal-200:#8FDCDC;
+  --teal-300:#57C9C9;
+  --teal-400:#26B3B3;
+  --teal-500:#0FA3A3; /* primary */
+  --teal-600:#0C8585;
+  --teal-700:#0A6B6B;
+  --teal-800:#085454;
+  --teal-900:#063C3C;
+
+  /* ===== Accent — Amber (reminders, highlights) ===== */
+  --amber-50:#FEF6DE;
+  --amber-100:#FDE9AF;
+  --amber-200:#FBD965;
+  --amber-500:#F5B700;
+  --amber-600:#D69C00;
+  --amber-700:#A87A00;
+
+  /* ===== Neutrals — cool slate ===== */
+  --white:#FFFFFF;
+  --gray-50:#F6F8F8;
+  --gray-100:#EDF1F1;
+  --gray-200:#DDE4E4;
+  --gray-300:#C4CFCF;
+  --gray-400:#9AA8A8;
+  --gray-500:#6B7B7B;
+  --gray-600:#4C5A5A;
+  --gray-700:#364242;
+  --gray-800:#212B2B;
+  --gray-900:#101818;
+
+  /* ===== Semantic hues ===== */
+  --green-50:#E7F6EF;  --green-500:#1E9E6A;  --green-600:#178055;
+  --red-50:#FCEAEA;    --red-500:#E23D3D;    --red-600:#C22B2B;
+  --blue-50:#E8F1FD;   --blue-500:#2563C9;   --blue-600:#1D4FA6;
+  --whatsapp:#25D366;
+
+  /* ===== Semantic aliases ===== */
+  --brand:var(--teal-500);
+  --brand-hover:var(--teal-600);
+  --brand-active:var(--teal-700);
+  --brand-subtle:var(--teal-50);
+  --brand-border:var(--teal-200);
+  --accent:var(--amber-500);
+  --accent-subtle:var(--amber-50);
+
+  --text-strong:var(--gray-900);
+  --text-body:var(--gray-700);
+  --text-muted:var(--gray-500);
+  --text-on-brand:var(--white);
+  --text-link:var(--teal-600);
+
+  --surface-page:var(--gray-50);
+  --surface-card:var(--white);
+  --surface-sunken:var(--gray-100);
+  --surface-brand:var(--teal-500);
+
+  --border-subtle:var(--gray-200);
+  --border-default:var(--gray-300);
+  --border-strong:var(--gray-400);
+
+  /* status: appointment / notification */
+  --status-scheduled:var(--gray-500);
+  --status-sent:var(--blue-500);
+  --status-delivered:var(--green-500);
+  --status-failed:var(--red-500);
+  --status-confirmed:var(--teal-500);
+  --status-cancelled:var(--red-500);
+  --status-pending:var(--amber-600);
+
+  --success:var(--green-500); --success-subtle:var(--green-50);
+  --danger:var(--red-500);    --danger-subtle:var(--red-50);
+  --warning:var(--amber-600); --warning-subtle:var(--amber-50);
+  --info:var(--blue-500);     --info-subtle:var(--blue-50);
+}

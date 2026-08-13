@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تسجيل الدخول — ميعاد</title>
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/fonts.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/colors.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/typography.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/spacing.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/shadows.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/styles.css">
+<style>
+  html,body{margin:0;height:100%}
+  body{background:#fff;font-family:var(--font-body);color:var(--text-body)}
+  a{color:var(--text-link);text-decoration:none}
+  a:hover{color:var(--teal-700)}
+  ::selection{background:var(--teal-200)}
+  .shell{min-height:100vh;display:flex}
+  .brand-panel{flex:1 1 46%;background:linear-gradient(160deg,var(--teal-800),var(--teal-900));position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:48px}
+  .form-panel{flex:1 1 54%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px}
+  @media (max-width:880px){ .brand-panel{display:none} .form-panel{flex:1 1 100%} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+<script src="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/_ds_bundle.js"></script>
+
+<script type="text/babel">
+const { Icon, Button, Field, Input, Checkbox, Tabs } = window.MeaadDesignSystem_54b82a;
+const font = 'var(--font-display)';
+
+const BENEFITS = [
+  ['calendar-check', 'إدارة كل مواعيد عيادتك من مكان واحد'],
+  ['shield-check', 'تحقق تلقائي يمنع تعارض الحجوزات'],
+  ['bell-ring', 'تذكيرات تلقائية للعملاء عبر واتساب وSMS'],
+];
+
+function BrandPanel() {
+  return (
+    <div className="brand-panel">
+      <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'var(--brand)', opacity: .22, filter: 'blur(60px)', top: -60, insetInlineStart: -60 }} />
+      <div style={{ position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--amber-500)', opacity: .16, filter: 'blur(50px)', bottom: -40, insetInlineEnd: -20 }} />
+      <a href="landing.html" style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
+        <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font, fontWeight: 900, fontSize: 20, boxShadow: 'var(--shadow-brand)' }}>م</div>
+        <span style={{ fontFamily: font, fontWeight: 900, fontSize: 20, color: '#fff' }}>ميعاد</span>
+      </a>
+      <div style={{ position: 'relative' }}>
+        <h1 style={{ fontFamily: font, fontWeight: 900, fontSize: 34, lineHeight: 1.3, color: '#fff', margin: 0, maxWidth: 380 }}>رحلة عيادتك تبدأ من هنا</h1>
+        <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 15, lineHeight: 1.8, marginTop: 12, maxWidth: 360 }}>سجّل الدخول لمتابعة الحجوزات والتذكيرات وإدارة فريقك من مركز تحكم واحد.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 30 }}>
+          {BENEFITS.map(([ic, t]) => (
+            <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(255,255,255,.12)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}><Icon name={ic} size={17} /></span>
+              <span style={{ color: 'rgba(255,255,255,.92)', fontSize: 14 }}>{t}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(255,255,255,.6)', fontSize: 12.5 }}>
+        <Icon name="star" size={14} color="var(--amber-500)" />تقييم 4.9 من أكثر من 120 عيادة
+      </div>
+    </div>
+  );
+}
+
+function PasswordField({ label, value, onChange, placeholder }) {
+  const [show, setShow] = React.useState(false);
+  const [focus, setFocus] = React.useState(false);
+  return (
+    <Field label={label}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <span style={{ position: 'absolute', insetInlineStart: 14, color: 'var(--text-muted)', display: 'flex' }}><Icon name="lock" size={18} /></span>
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          onFocus={() => setFocus(true)}
+          onBlur={() => setFocus(false)}
+          style={{ width: '100%', height: 46, fontFamily: 'var(--font-body)', fontSize: 'var(--text-base)', color: 'var(--text-strong)', background: '#fff', border: `1px solid ${focus ? 'var(--brand)' : 'var(--border-default)'}`, borderRadius: 'var(--radius-md)', padding: '0 44px 0 44px', boxShadow: focus ? 'var(--shadow-focus)' : 'none', outline: 'none', transition: 'border-color .15s ease, box-shadow .15s ease', boxSizing: 'border-box' }}
+        />
+        <button type="button" onClick={() => setShow(s => !s)} aria-label="إظهار كلمة السر" style={{ position: 'absolute', insetInlineStart: undefined, insetInlineEnd: 14, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+          <Icon name={show ? 'eye-off' : 'eye'} size={18} />
+        </button>
+      </div>
+    </Field>
+  );
+}
+
+function LoginForm() {
+  const [role, setRole] = React.useState('customer');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [remember, setRemember] = React.useState(true);
+  return (
+    <div style={{ width: '100%', maxWidth: 400 }}>
+      <a href="landing.html" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 26 }}>
+        <Icon name="arrow-right" size={16} />العودة للرئيسية
+      </a>
+
+      <Tabs
+        value={role}
+        onChange={setRole}
+        tabs={[{ label: 'عميل', value: 'customer' }, { label: 'فريق العيادة', value: 'staff' }]}
+        style={{ marginBottom: 26 }}
+      />
+
+      <h1 style={{ fontFamily: font, fontWeight: 900, fontSize: 27, color: 'var(--text-strong)', margin: 0 }}>مرحباً بعودتك 👋</h1>
+      <p style={{ color: 'var(--text-muted)', fontSize: 14.5, marginTop: 8 }}>
+        {role === 'customer' ? 'سجّل الدخول لمتابعة حجوزاتك وتذكيراتك.' : 'سجّل الدخول لإدارة عيادتك من مركز التحكم.'}
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 26 }}>
+        <Field label="البريد الإلكتروني أو رقم الهاتف">
+          <Input iconStart="mail" placeholder="example@meaad.sa" value={email} onChange={e => setEmail(e.target.value)} />
+        </Field>
+        <PasswordField label="كلمة السر" value={password} onChange={setPassword} placeholder="••••••••" />
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Checkbox label="تذكرني" checked={remember} onChange={setRemember} />
+          <a href="forgot-password.html" style={{ fontSize: 13.5, fontWeight: 700 }}>نسيت كلمة السر؟</a>
+        </div>
+
+        <Button block size="lg">تسجيل الدخول</Button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text-muted)', fontSize: 12.5 }}>
+          <span style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />أو<span style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+        </div>
+
+        <div style={{ textAlign: 'center', fontSize: 13.5 }}>
+          ليس لديك حساب؟ <a href="signup.html">إنشاء حساب</a>
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--text-muted)' }}>
+          تحتاج مساعدة؟ <a href="landing.html#footer">تواصل مع الدعم</a>
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: 40, fontSize: 12, color: 'var(--text-muted)' }}>
+        © 2026 ميعاد · <a href="#">الشروط</a> · <a href="#">الخصوصية</a>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <div className="shell">
+      <BrandPanel />
+      <div className="form-panel"><LoginForm /></div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

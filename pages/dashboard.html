@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مركز التحكم — ميعاد</title>
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/fonts.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/colors.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/typography.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/spacing.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/shadows.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/styles.css">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden}
+  body{font-family:var(--font-body);color:var(--text-body)}
+  #root{height:100%}
+  ::selection{background:var(--teal-200)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+<script src="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/_ds_bundle.js"></script>
+<script src="../story/data.js"></script>
+<script type="text/babel" src="../story/Admin.jsx"></script>
+
+<script type="text/babel">
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <div style={{ height: '100%' }}><AdminDashboard initialTab="agenda" /></div>
+);
+</script>
+</body>
+</html>

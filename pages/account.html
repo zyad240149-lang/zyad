@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>حسابي — ميعاد</title>
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/fonts.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/colors.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/typography.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/spacing.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/shadows.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/styles.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--surface-page);font-family:var(--font-body);color:var(--text-body)}
+  a{color:var(--text-link);text-decoration:none}
+  a:hover{color:var(--teal-700)}
+  ::selection{background:var(--teal-200)}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 28px 70px}
+  .layout{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .nav-links{display:flex;align-items:center;gap:4px}
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr}
+    .stats-row{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .nav-links{display:none}
+    .wrap{padding:0 16px 50px}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+<script src="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/_ds_bundle.js"></script>
+<script src="../story/data.js"></script>
+
+<script type="text/babel">
+const { Icon, Button, Card, Field, Input, Tabs, StatusPill, Avatar, Switch } = window.MeaadDesignSystem_54b82a;
+const S = window.MeaadStory;
+const font = 'var(--font-display)';
+
+const APPOINTMENTS = [
+  { id: 1, service: 'تنظيف أسنان', doctor: 'الدكتور أحمد سمير', branch: 'فرع أكتوبر', date: '12 أغسطس 2026', time: '5:00 م', status: 'pending', group: 'upcoming' },
+  { id: 2, service: 'استشارة', doctor: 'الدكتورة منى خالد', branch: 'فرع المعادي', date: '2 يونيو 2026', time: '11:30 ص', status: 'confirmed', group: 'past' },
+  { id: 3, service: 'أشعة', doctor: 'الدكتور أحمد سمير', branch: 'فرع أكتوبر', date: '20 يونيو 2026', time: '6:30 م', status: 'cancelled', group: 'cancelled' },
+  { id: 4, service: 'تنظيف أسنان', doctor: 'الدكتور أحمد سمير', branch: 'فرع أكتوبر', date: '10 يوليو 2026', time: '4:30 م', status: 'confirmed', group: 'past' },
+];
+
+const NOTIFICATIONS = [
+  { id: 'n1', kind: 'تأكيد الحجز', channel: 'WhatsApp', icon: 'message-circle', color: 'var(--whatsapp)', time: 'قبل دقائق', status: 'delivered' },
+  { id: 'n2', kind: 'تذكير قبل 24 ساعة', channel: 'WhatsApp', icon: 'message-circle', color: 'var(--whatsapp)', time: 'أمس 5:00 م', status: 'delivered' },
+  { id: 'n3', kind: 'تذكير قبل ساعة', channel: 'SMS', icon: 'message-square', color: 'var(--blue-500)', time: '10 يوليو', status: 'sent' },
+  { id: 'n4', kind: 'تعديل الموعد', channel: 'Email', icon: 'mail', color: 'var(--gray-500)', time: '2 يونيو', status: 'delivered' },
+];
+
+function TopNav({ tab, setTab }) {
+  const links = [['نظرة عامة', 'overview'], ['مواعيدي', 'appointments'], ['الإشعارات', 'notifications'], ['الملف الشخصي', 'profile']];
+  return (
+    <div style={{ background: '#fff', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 30 }}>
+      <div className="wrap" style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '16px 28px' }}>
+        <a href="../story/index.html" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 11, background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font, fontWeight: 900, fontSize: 17, boxShadow: 'var(--shadow-brand)' }}>م</div>
+          <span style={{ fontFamily: font, fontWeight: 900, fontSize: 18, color: 'var(--text-strong)' }}>ميعاد</span>
+        </a>
+        <nav className="nav-links" style={{ marginInlineStart: 12 }}>
+          {links.map(([label, id]) => (
+            <button key={id} onClick={() => setTab(id)} style={{ background: tab === id ? 'var(--brand-subtle)' : 'transparent', color: tab === id ? 'var(--teal-700)' : 'var(--text-muted)', border: 'none', cursor: 'pointer', fontFamily: font, fontWeight: 700, fontSize: 13.5, padding: '9px 15px', borderRadius: 999 }}>{label}</button>
+          ))}
+        </nav>
+        <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid var(--border-subtle)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <Icon name="bell" size={18} color="var(--text-body)" />
+            <span style={{ position: 'absolute', top: 8, insetInlineEnd: 9, width: 7, height: 7, borderRadius: '50%', background: 'var(--amber-500)', border: '2px solid #fff' }} />
+          </button>
+          <Button variant="ghost" size="sm" iconStart="log-out" onClick={() => location.href = 'login.html'}>تسجيل الخروج</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileCard({ tab, setTab }) {
+  const links = [
+    ['layout-grid', 'نظرة عامة', 'overview'],
+    ['calendar-days', 'مواعيدي', 'appointments'],
+    ['bell', 'الإشعارات', 'notifications'],
+    ['user-round', 'الملف الشخصي', 'profile'],
+  ];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'sticky', top: 90 }}>
+      <Card padding={22} style={{ textAlign: 'center' }}>
+        <Avatar name={S.patient.name} size="lg" style={{ margin: '0 auto', width: 66, height: 66, fontSize: 24 }} />
+        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)', marginTop: 12 }}>{S.patient.name}</div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{S.patient.phone}</div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--teal-700)', background: 'var(--brand-subtle)', padding: '5px 12px', borderRadius: 999, marginTop: 12 }}>
+          <Icon name="badge-check" size={13} />عميلة منذ أغسطس 2026
+        </div>
+      </Card>
+      <Card padding={10}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {links.map(([ic, label, id]) => {
+            const on = tab === id;
+            return (
+              <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', borderRadius: 12, border: 'none', cursor: 'pointer', textAlign: 'start', fontFamily: font, fontWeight: 700, fontSize: 14, background: on ? 'var(--brand-subtle)' : 'transparent', color: on ? 'var(--teal-700)' : 'var(--text-body)' }}>
+                <Icon name={ic} size={18} color={on ? 'var(--brand)' : 'var(--text-muted)'} />{label}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function NextAppointment() {
+  const next = APPOINTMENTS.find(a => a.group === 'upcoming');
+  return (
+    <Card padding={0} style={{ overflow: 'hidden' }}>
+      <div style={{ background: 'linear-gradient(120deg,var(--teal-700),var(--teal-600))', padding: '20px 24px', color: '#fff' }}>
+        <div style={{ fontSize: 12.5, opacity: .85 }}>موعدك القادم</div>
+        <div style={{ fontFamily: font, fontWeight: 900, fontSize: 20, marginTop: 4 }}>{next.service} · {next.time}</div>
+      </div>
+      <div style={{ padding: 22, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ width: 48, height: 48, borderRadius: 15, background: 'var(--brand-subtle)', color: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}><Icon name="sparkles" size={23} /></div>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ fontFamily: font, fontWeight: 800, fontSize: 15, color: 'var(--text-strong)' }}>{next.doctor}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{next.date} · {next.branch}</div>
+        </div>
+        <StatusPill status={next.status} />
+        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+          <Button variant="secondary" size="sm" iconStart="pencil" style={{ flex: 1 }}>تعديل الموعد</Button>
+          <Button variant="ghost" size="sm" iconStart="x" style={{ flex: 1, color: 'var(--red-500)' }}>إلغاء الموعد</Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+const OVERVIEW_STATS = [
+  ['+4', 'إجمالي الحجوزات', 'calendar-days', 'var(--brand)'],
+  ['1', 'موعد قادم', 'clock', 'var(--amber-600)'],
+  ['3', 'مواعيد مكتملة', 'check-circle', 'var(--green-500)'],
+];
+
+function Overview({ goTo }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontFamily: font, fontWeight: 900, fontSize: 24, color: 'var(--text-strong)', margin: 0 }}>مساء الخير، {S.patient.first} 👋</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>هذه نظرة سريعة على حجوزاتك وتذكيراتك.</p>
+        </div>
+        <Button iconStart="plus" onClick={() => location.href = '../story/index.html'}>حجز موعد جديد</Button>
+      </div>
+
+      <div className="stats-row">
+        {OVERVIEW_STATS.map(([v, l, ic, tone]) => (
+          <Card key={l} padding={18}>
+            <div style={{ width: 42, height: 42, borderRadius: 13, background: `color-mix(in srgb, ${tone} 14%, white)`, color: tone, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={ic} size={20} /></div>
+            <div style={{ fontFamily: font, fontWeight: 900, fontSize: 26, color: 'var(--text-strong)', marginTop: 12 }}>{v}</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{l}</div>
+          </Card>
+        ))}
+      </div>
+
+      <NextAppointment />
+
+      <Card padding={22}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontFamily: font, fontWeight: 800, fontSize: 16.5, color: 'var(--text-strong)' }}>آخر الإشعارات</div>
+          <button onClick={() => goTo('notifications')} style={{ marginInlineStart: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-link)', fontFamily: font, fontWeight: 700, fontSize: 13 }}>عرض الكل</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {NOTIFICATIONS.slice(0, 3).map(n => (
+            <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 13, background: 'var(--surface-page)' }}>
+              <span style={{ width: 34, height: 34, borderRadius: 10, flex: '0 0 auto', background: `color-mix(in srgb, ${n.color} 14%, white)`, color: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={n.icon} size={16} /></span>
+              <span style={{ fontSize: 13.5, color: 'var(--text-body)', flex: 1 }}>{n.kind}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{n.time}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+const FILTERS = [['all', 'الكل'], ['upcoming', 'القادمة'], ['past', 'السابقة'], ['cancelled', 'ملغاة']];
+
+function Appointments() {
+  const [filter, setFilter] = React.useState('all');
+  const list = filter === 'all' ? APPOINTMENTS : APPOINTMENTS.filter(a => a.group === filter);
+  return (
+    <Card padding={0} style={{ overflow: 'hidden' }}>
+      <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>مواعيدي</div>
+        <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 6 }}>
+          {FILTERS.map(([id, label]) => (
+            <button key={id} onClick={() => setFilter(id)} style={{ fontSize: 12.5, fontWeight: 700, padding: '6px 13px', borderRadius: 999, background: filter === id ? 'var(--brand-subtle)' : 'transparent', color: filter === id ? 'var(--teal-700)' : 'var(--text-muted)', border: filter === id ? '1px solid var(--brand-border)' : '1px solid transparent', cursor: 'pointer' }}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: '6px 22px 18px' }}>
+        {list.map(a => (
+          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 0', borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--brand-subtle)', color: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}><Icon name="sparkles" size={20} /></div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontFamily: font, fontWeight: 800, fontSize: 14.5, color: 'var(--text-strong)' }}>{a.service}</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>{a.doctor} · {a.branch}</div>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-body)', minWidth: 140 }}>{a.date} · {a.time}</div>
+            <StatusPill status={a.status} />
+            {a.group === 'upcoming' && <Button variant="secondary" size="sm">التفاصيل</Button>}
+            {a.group === 'past' && <Button variant="ghost" size="sm">احجز مرة أخرى</Button>}
+          </div>
+        ))}
+        {list.length === 0 && <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13.5 }}>لا توجد مواعيد في هذا التصنيف.</div>}
+      </div>
+    </Card>
+  );
+}
+
+function Notifications() {
+  const STATUS_LABEL = { scheduled: 'مجدول', sent: 'تم الإرسال', delivered: 'تم الاستلام', failed: 'فشل' };
+  return (
+    <Card padding={0} style={{ overflow: 'hidden' }}>
+      <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>الإشعارات</div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>كل تذكير وتحديث يخص حجوزاتك</div>
+      </div>
+      <div style={{ padding: '8px 22px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {NOTIFICATIONS.map(n => (
+          <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 14, borderRadius: 15, border: '1px solid var(--border-subtle)' }}>
+            <span style={{ width: 40, height: 40, borderRadius: 12, flex: '0 0 auto', background: `color-mix(in srgb, ${n.color} 14%, white)`, color: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={n.icon} size={19} /></span>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <div style={{ fontFamily: font, fontWeight: 700, fontSize: 14, color: 'var(--text-strong)' }}>{n.kind}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{n.channel} · {n.time}</div>
+            </div>
+            <StatusPill status={n.status} label={STATUS_LABEL[n.status]} />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function Profile() {
+  const [name, setName] = React.useState(S.patient.name);
+  const [phone] = React.useState(S.patient.phone);
+  const [email, setEmail] = React.useState('');
+  const [channels, setChannels] = React.useState({ wa: true, sms: true, email: false });
+  const toggle = k => setChannels(c => ({ ...c, [k]: !c[k] }));
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <Card padding={24}>
+        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)', marginBottom: 18 }}>البيانات الأساسية</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Field label="الاسم الكامل"><Input iconStart="user-round" value={name} onChange={e => setName(e.target.value)} /></Field>
+          <Field label="رقم الهاتف" hint="رقم موثّق ولا يمكن تغييره من هنا">
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Input iconStart="phone" value={phone} disabled />
+              <span style={{ position: 'absolute', insetInlineEnd: 14, color: 'var(--green-500)', display: 'flex' }}><Icon name="badge-check" size={17} /></span>
+            </div>
+          </Field>
+          <Field label="البريد الإلكتروني (اختياري)" style={{ gridColumn: '1 / -1' }}>
+            <Input iconStart="mail" placeholder="example@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card padding={24}>
+        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)', marginBottom: 4 }}>قنوات التذكير المفضّلة</div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13.5, marginBottom: 16 }}>اختر من أين تحب تستلم تذكيرات مواعيدك.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {[['wa', 'WhatsApp', 'message-circle', 'var(--whatsapp)'], ['sms', 'رسائل SMS', 'message-square', 'var(--blue-500)'], ['email', 'البريد الإلكتروني', 'mail', 'var(--gray-500)']].map(([k, label, ic, color]) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--border-subtle)' }}>
+              <span style={{ width: 36, height: 36, borderRadius: 11, background: `color-mix(in srgb, ${color} 14%, white)`, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={ic} size={18} /></span>
+              <span style={{ fontFamily: font, fontWeight: 700, fontSize: 14, color: 'var(--text-strong)' }}>{label}</span>
+              <div style={{ marginInlineStart: 'auto' }}><Switch checked={channels[k]} onChange={() => toggle(k)} /></div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button size="lg" iconStart="check">حفظ التغييرات</Button>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [tab, setTab] = React.useState('overview');
+  return (
+    <>
+      <TopNav tab={tab} setTab={setTab} />
+      <div className="wrap" style={{ paddingTop: 26 }}>
+        <div className="layout">
+          <ProfileCard tab={tab} setTab={setTab} />
+          <div>
+            {tab === 'overview' && <Overview goTo={setTab} />}
+            {tab === 'appointments' && <Appointments />}
+            {tab === 'notifications' && <Notifications />}
+            {tab === 'profile' && <Profile />}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

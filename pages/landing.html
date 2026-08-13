@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ميعاد — منصة حجز وإدارة العيادات</title>
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/fonts.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/colors.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/typography.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/spacing.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/shadows.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/styles.css">
+<style>
+  html{scroll-behavior:smooth}
+  html,body{margin:0}
+  body{background:#fff;font-family:var(--font-body);color:var(--text-body)}
+  a{color:var(--text-link);text-decoration:none}
+  a:hover{color:var(--teal-700)}
+  ::selection{background:var(--teal-200)}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 40px}
+  .hero{display:flex;align-items:center;gap:60px;padding:64px 0 90px}
+  .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .steps-row{display:flex;gap:22px}
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .nav-links{display:flex;align-items:center;gap:30px}
+  .nav-actions{display:flex;align-items:center;gap:10px}
+  .nav-burger{display:none}
+  .footer-grid{display:grid;grid-template-columns:1.6fr repeat(3,1fr);gap:30px}
+  @media (max-width:960px){
+    .hero{flex-direction:column;padding:44px 0 60px}
+    .features-grid{grid-template-columns:repeat(2,1fr)}
+    .stats-row{grid-template-columns:repeat(2,1fr);row-gap:28px}
+    .footer-grid{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:720px){
+    .nav-links,.nav-actions .desktop-only{display:none}
+    .nav-burger{display:flex}
+    .wrap{padding:0 20px}
+  }
+  @media (max-width:560px){
+    .features-grid{grid-template-columns:1fr}
+    .steps-row{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+<script src="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/_ds_bundle.js"></script>
+
+<script type="text/babel">
+const { Icon, Button, Card } = window.MeaadDesignSystem_54b82a;
+const font = 'var(--font-display)';
+
+function Logo({ size = 40, dark }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ width: size, height: size, borderRadius: size * 0.3, background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font, fontWeight: 900, fontSize: size * 0.5, boxShadow: 'var(--shadow-brand)', flex: '0 0 auto' }}>م</div>
+      <span style={{ fontFamily: font, fontWeight: 900, fontSize: size * 0.5, color: dark ? '#fff' : 'var(--text-strong)' }}>ميعاد</span>
+    </div>
+  );
+}
+
+const NAV = [['المميزات', '#features'], ['كيف يعمل', '#how'], ['الأرقام', '#stats'], ['تواصل معنا', '#footer']];
+
+function Nav() {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(255,255,255,.9)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="wrap" style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '16px 40px' }}>
+        <Logo size={38} />
+        <nav className="nav-links" style={{ marginInlineStart: 20 }}>
+          {NAV.map(([label, href]) => (
+            <a key={label} href={href} style={{ fontFamily: font, fontWeight: 700, fontSize: 14.5, color: 'var(--text-body)' }}>{label}</a>
+          ))}
+        </nav>
+        <div className="nav-actions" style={{ marginInlineStart: 'auto' }}>
+          <span className="desktop-only" style={{ display: 'inline-flex' }}>
+            <Button variant="ghost" size="sm" onClick={() => location.href = 'login.html'}>تسجيل الدخول</Button>
+          </span>
+          <Button variant="primary" size="sm" iconEnd="arrow-left" onClick={() => location.href = 'signup.html'}>ابدأ مجاناً</Button>
+          <button className="nav-burger" onClick={() => setOpen(o => !o)} style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid var(--border-subtle)', background: '#fff', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <Icon name={open ? 'x' : 'menu'} size={20} color="var(--text-strong)" />
+          </button>
+        </div>
+      </div>
+      {open && (
+        <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {NAV.map(([label, href]) => (
+            <a key={label} href={href} onClick={() => setOpen(false)} style={{ fontFamily: font, fontWeight: 700, fontSize: 15, color: 'var(--text-body)', padding: '10px 6px' }}>{label}</a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TicketMock() {
+  return (
+    <div style={{ background: '#fff', borderRadius: 22, boxShadow: '0 30px 60px -20px rgba(6,60,60,.35)', border: '1px solid var(--border-subtle)', padding: 20, width: 300, transform: 'rotate(-3deg)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--brand-subtle)', color: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="sparkles" size={22} /></div>
+        <div>
+          <div style={{ fontFamily: font, fontWeight: 800, fontSize: 15.5, color: 'var(--text-strong)' }}>تنظيف أسنان</div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>الدكتور أحمد سمير</div>
+        </div>
+        <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 800, color: '#fff', background: 'var(--brand)', padding: '5px 11px', borderRadius: 999 }}>مؤكد</span>
+      </div>
+      <div style={{ borderTop: '2px dashed var(--border-default)', margin: '16px 0' }} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 13 }}>
+        <div><div style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>التاريخ</div><div style={{ fontFamily: font, fontWeight: 800, color: 'var(--text-strong)' }}>12 أغسطس</div></div>
+        <div><div style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>الوقت</div><div style={{ fontFamily: font, fontWeight: 800, color: 'var(--text-strong)' }}>5:00 م</div></div>
+        <div><div style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>الفرع</div><div style={{ fontFamily: font, fontWeight: 800, color: 'var(--text-strong)' }}>فرع أكتوبر</div></div>
+        <div><div style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>رمز الحجز</div><div style={{ fontFamily: font, fontWeight: 800, color: 'var(--text-strong)' }}>MA-4821</div></div>
+      </div>
+    </div>
+  );
+}
+
+function HeroVisual() {
+  return (
+    <div style={{ position: 'relative', flex: '1 1 460px', minHeight: 420, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', width: 340, height: 340, borderRadius: '50%', background: 'var(--brand)', opacity: .14, filter: 'blur(50px)', top: 10, insetInlineEnd: 10 }} />
+      <div style={{ position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--amber-500)', opacity: .16, filter: 'blur(46px)', bottom: 0, insetInlineStart: 10 }} />
+      <TicketMock />
+      <div style={{ position: 'absolute', top: 24, insetInlineStart: 0, display: 'flex', alignItems: 'center', gap: 9, background: '#fff', borderRadius: 999, padding: '10px 16px', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-subtle)', transform: 'rotate(-4deg)' }}>
+        <Icon name="message-circle" size={17} color="var(--whatsapp)" /><span style={{ fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-strong)' }}>تذكير قبل ساعة</span>
+      </div>
+      <div style={{ position: 'absolute', bottom: 30, insetInlineEnd: 0, display: 'flex', alignItems: 'center', gap: 9, background: '#fff', borderRadius: 999, padding: '10px 16px', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-subtle)', transform: 'rotate(3deg)' }}>
+        <Icon name="shield-check" size={17} color="var(--green-500)" /><span style={{ fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-strong)' }}>لا تعارض حجوزات</span>
+      </div>
+    </div>
+  );
+}
+
+function Hero() {
+  return (
+    <div className="wrap hero">
+      <div style={{ flex: '1 1 480px' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--teal-700)', background: 'var(--brand-subtle)', border: '1px solid var(--brand-border)', padding: '6px 14px', borderRadius: 999 }}>
+          <Icon name="sparkles" size={14} />منصة عيادات عربية بالكامل
+        </span>
+        <h1 style={{ fontFamily: font, fontWeight: 900, fontSize: 48, lineHeight: 1.18, color: 'var(--text-strong)', margin: '18px 0 0', textWrap: 'balance' }}>احجز عيادتك القادمة في أقل من دقيقة</h1>
+        <p style={{ fontSize: 17, lineHeight: 1.85, color: 'var(--text-muted)', maxWidth: 500, marginTop: 16 }}>
+          ميعاد يجمع حجز العملاء، لوحة تحكم الإدارة، والتذكيرات التلقائية عبر واتساب وSMS والبريد — في مكان واحد، بلا تعارض حجوزات وبلا مواعيد ضائعة.
+        </p>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 28 }}>
+          <Button size="lg" iconEnd="arrow-left" onClick={() => location.href = 'signup.html'}>ابدأ مجاناً</Button>
+          <Button size="lg" variant="secondary" iconStart="play" onClick={() => location.href = '../story/index.html'}>شاهد العرض التوضيحي</Button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 30 }}>
+          <div style={{ display: 'flex' }}>
+            {['س', 'أ', 'ن', 'م'].map((l, i) => (
+              <span key={l} style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--brand-subtle)', color: 'var(--teal-700)', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font, fontWeight: 800, fontSize: 13, marginInlineStart: i === 0 ? 0 : -10 }}>{l}</span>
+            ))}
+          </div>
+          <div style={{ fontSize: 13.5, color: 'var(--text-body)' }}><b style={{ fontFamily: font }}>+120 عيادة</b> تدير مواعيدها عبر ميعاد</div>
+        </div>
+      </div>
+      <HeroVisual />
+    </div>
+  );
+}
+
+const FEATURES = [
+  { ic: 'smartphone', title: 'حجز في ثوانٍ', desc: 'تجربة حجز سريعة وبسيطة للعميل من الموبايل، بلا تعقيد وبلا اتصال هاتفي.' },
+  { ic: 'shield-check', title: 'منع تعارض الحجوزات', desc: 'تحقق تلقائي من التوفّر يمنع ازدواج الحجز على نفس الطبيب والوقت.' },
+  { ic: 'bell-ring', title: 'تذكيرات تلقائية', desc: 'تذكير قبل 24 ساعة وقبل ساعة عبر واتساب أو SMS أو البريد الإلكتروني.' },
+  { ic: 'monitor', title: 'لوحة تحكم شاملة', desc: 'إدارة المواعيد والأطباء والحسابات من مركز تحكم واحد لفريقك.' },
+  { ic: 'map-pin', title: 'دعم متعدد الفروع', desc: 'أضف فروعك المختلفة وتابع إشغال وأداء كل فرع على حدة.' },
+  { ic: 'wallet', title: 'تقارير مالية فورية', desc: 'تابع الإيرادات والفواتير والمدفوعات لحظة بلحظة، بدون تجميع يدوي.' },
+];
+
+function Features() {
+  return (
+    <section id="features" className="wrap" style={{ padding: '30px 0 80px' }}>
+      <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 44px' }}>
+        <h2 style={{ fontFamily: font, fontWeight: 900, fontSize: 34, color: 'var(--text-strong)', margin: 0 }}>كل ما تحتاجه عيادتك في مكان واحد</h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 16, lineHeight: 1.8, marginTop: 12 }}>من حجز العميل الأول حتى تذكيره بموعده — ميعاد يغطي الرحلة كاملة.</p>
+      </div>
+      <div className="features-grid">
+        {FEATURES.map(f => (
+          <Card key={f.title} padding={26} interactive>
+            <div style={{ width: 50, height: 50, borderRadius: 15, background: 'var(--brand-subtle)', color: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={f.ic} size={24} /></div>
+            <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17.5, color: 'var(--text-strong)', marginTop: 16 }}>{f.title}</div>
+            <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-muted)', marginTop: 6 }}>{f.desc}</p>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const STEPS = [
+  { ic: 'smartphone', title: 'العميل يحجز', desc: 'يختار الفرع والخدمة والطبيب والوقت المناسب في خطوات قصيرة.' },
+  { ic: 'check-check', title: 'الإدارة تؤكد', desc: 'يستقبل الفريق الحجز، يتحقق من التوفّر، ويؤكده بضغطة واحدة.' },
+  { ic: 'bell', title: 'تذكير تلقائي', desc: 'يصل العميل تذكيران — قبل يوم وقبل ساعة — عبر القناة المفضّلة له.' },
+];
+
+function How() {
+  return (
+    <section id="how" style={{ background: 'var(--surface-page)', padding: '80px 0' }}>
+      <div className="wrap">
+        <div style={{ textAlign: 'center', maxWidth: 560, margin: '0 auto 44px' }}>
+          <h2 style={{ fontFamily: font, fontWeight: 900, fontSize: 34, color: 'var(--text-strong)', margin: 0 }}>كيف يعمل ميعاد؟</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 16, lineHeight: 1.8, marginTop: 12 }}>ثلاث خطوات بسيطة تربط العميل بالعيادة.</p>
+        </div>
+        <div className="steps-row">
+          {STEPS.map((s, i) => (
+            <React.Fragment key={s.title}>
+              <div style={{ flex: 1, background: '#fff', borderRadius: 20, border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)', padding: 26 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--teal-800)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={s.ic} size={21} /></div>
+                  <span style={{ fontFamily: font, fontWeight: 900, fontSize: 14, color: 'var(--gray-300)' }}>{String(i + 1).padStart(2, '0')}</span>
+                </div>
+                <div style={{ fontFamily: font, fontWeight: 800, fontSize: 18, color: 'var(--text-strong)', marginTop: 16 }}>{s.title}</div>
+                <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-muted)', marginTop: 6 }}>{s.desc}</p>
+              </div>
+              {i < STEPS.length - 1 && <div style={{ display: 'flex', alignItems: 'center', color: 'var(--gray-300)' }}><Icon name="chevron-left" size={26} /></div>}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const STATS = [['+120', 'عيادة نشطة'], ['+45,000', 'حجز شهرياً'], ['98%', 'نسبة الحضور'], ['4.9', 'تقييم العملاء']];
+
+function Stats() {
+  return (
+    <section id="stats" style={{ background: 'linear-gradient(120deg,var(--teal-800),var(--teal-600))', padding: '54px 0' }}>
+      <div className="wrap stats-row">
+        {STATS.map(([v, l]) => (
+          <div key={l} style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: font, fontWeight: 900, fontSize: 38, color: '#fff' }}>{v}</div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,.8)', marginTop: 4 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CtaBanner() {
+  return (
+    <section className="wrap" style={{ padding: '80px 0' }}>
+      <div style={{ background: 'var(--brand-subtle)', border: '1px solid var(--brand-border)', borderRadius: 28, padding: '54px 40px', textAlign: 'center' }}>
+        <h2 style={{ fontFamily: font, fontWeight: 900, fontSize: 30, color: 'var(--text-strong)', margin: 0 }}>جاهز تبسّط إدارة عيادتك؟</h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 15.5, marginTop: 10 }}>ابدأ اليوم بدون بطاقة ائتمان — أضف فرعك الأول في دقائق.</p>
+        <div style={{ marginTop: 22 }}>
+          <Button size="lg" iconEnd="arrow-left" onClick={() => location.href = 'signup.html'}>ابدأ الآن مجاناً</Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const FOOTER_COLS = [
+  ['المنتج', [['المميزات', '#features'], ['كيف يعمل', '#how'], ['العرض التوضيحي', '../story/index.html']]],
+  ['الشركة', [['من نحن', '#'], ['تواصل معنا', '#'], ['المدونة', '#']]],
+  ['قانوني', [['الشروط والأحكام', '#'], ['سياسة الخصوصية', '#']]],
+];
+
+function Footer() {
+  return (
+    <footer id="footer" style={{ borderTop: '1px solid var(--border-subtle)', padding: '54px 0 30px' }}>
+      <div className="wrap footer-grid">
+        <div>
+          <Logo size={36} />
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.8, marginTop: 14, maxWidth: 280 }}>منصة عربية لإدارة حجوزات العيادات وتذكير العملاء تلقائياً عبر واتساب وSMS والبريد.</p>
+        </div>
+        {FOOTER_COLS.map(([title, links]) => (
+          <div key={title}>
+            <div style={{ fontFamily: font, fontWeight: 800, fontSize: 14.5, color: 'var(--text-strong)', marginBottom: 14 }}>{title}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+              {links.map(([l, href]) => <a key={l} href={href} style={{ fontSize: 13.5, color: 'var(--text-muted)' }}>{l}</a>)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--border-subtle)' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>© 2026 ميعاد. جميع الحقوق محفوظة.</span>
+        <div style={{ display: 'flex', gap: 12 }}>
+          {['instagram', 'twitter', 'linkedin'].map(ic => (
+            <span key={ic} style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--surface-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}><Icon name={ic} size={15} /></span>
+          ))}
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Nav />
+      <Hero />
+      <Features />
+      <How />
+      <Stats />
+      <CtaBanner />
+      <Footer />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

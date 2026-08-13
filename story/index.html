@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ميعاد — تصور المنتج</title>
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/fonts.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/colors.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/typography.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/spacing.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/shadows.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/styles.css">
+<style>
+  html,body{margin:0}
+  body{background:#e9efee;font-family:var(--font-body);color:var(--text-body)}
+  a{color:var(--text-link)}a:hover{color:var(--teal-700)}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 40px 90px}
+  .rail{display:flex;gap:22px;overflow-x:auto;padding:8px 4px 22px;scroll-snap-type:x mandatory}
+  .rail>div{scroll-snap-align:center}
+  .rail::-webkit-scrollbar{height:9px}.rail::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:9px}
+  ::selection{background:var(--teal-200)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+<script src="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/_ds_bundle.js"></script>
+<script src="data.js"></script>
+<script type="text/babel" src="Phone.jsx"></script>
+<script type="text/babel" src="Admin.jsx"></script>
+
+<script type="text/babel">
+const { Icon } = window.MeaadDesignSystem_54b82a;
+const S = window.MeaadStory;
+const font = 'var(--font-display)';
+
+const CHOSEN = { branch: 'فرع أكتوبر', service: 'تنظيف أسنان', doctor: 'الدكتور أحمد سمير', date: '12 أغسطس', time: '5:00 م' };
+
+function Hero() {
+  return (
+    <header style={{ padding: '54px 0 30px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+        <div style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font, fontWeight: 900, fontSize: 24, boxShadow: 'var(--shadow-brand)' }}>م</div>
+        <span style={{ fontFamily: font, fontWeight: 900, fontSize: 26, color: 'var(--text-strong)' }}>ميعاد</span>
+        <span style={{ marginInlineStart: 8, fontSize: 13, fontWeight: 700, color: 'var(--teal-700)', background: 'var(--brand-subtle)', border: '1px solid var(--brand-border)', padding: '5px 13px', borderRadius: 999 }}>تصور المنتج · Storyboard</span>
+      </div>
+      <h1 style={{ fontFamily: font, fontWeight: 900, fontSize: 46, lineHeight: 1.2, color: 'var(--text-strong)', margin: 0, maxWidth: 900, textWrap: 'balance' }}>
+        رحلة واحدة، من ضغطة العميل إلى تذكير الإدارة
+      </h1>
+      <p style={{ fontSize: 17, lineHeight: 1.8, color: 'var(--text-muted)', maxWidth: 720, marginTop: 16 }}>
+        تصوّر مختلف لسطحَي المنتج: تطبيق العميل بواجهة موبايل جريئة للحجز في ثوانٍ،
+        ومركز تحكم للإدارة يستقبل الحجز ويؤكده ويضبط التذكيرات ويتابع حالة كل إشعار.
+        نتابع فيه حجزاً واحداً لـ«{S.patient.name}» من أوله لآخره.
+      </p>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 22 }}>
+        {[['smartphone', 'تطبيق العميل — 8 شاشات'], ['monitor', 'مركز تحكم الإدارة — 4 أقسام'], ['bell', 'تذكيرات تلقائية 24 ساعة / ساعة'], ['message-circle', 'WhatsApp · SMS · Email']].map(([ic, t]) => (
+          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 700, color: 'var(--text-body)', background: '#fff', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)', padding: '9px 15px', borderRadius: 999 }}>
+            <Icon name={ic} size={16} color="var(--brand)" />{t}
+          </span>
+        ))}
+      </div>
+    </header>
+  );
+}
+
+function Act({ n, kicker, title, desc }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18, margin: '58px 0 26px' }}>
+      <div style={{ width: 52, height: 52, borderRadius: 16, flex: '0 0 auto', background: 'var(--teal-800)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font, fontWeight: 900, fontSize: 22 }}>{n}</div>
+      <div>
+        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 13, letterSpacing: 1, color: 'var(--brand)', textTransform: 'uppercase' }}>{kicker}</div>
+        <div style={{ fontFamily: font, fontWeight: 900, fontSize: 28, color: 'var(--text-strong)', marginTop: 3 }}>{title}</div>
+        <p style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--text-muted)', maxWidth: 760, margin: '8px 0 0' }}>{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function Scene({ step, sel }) { return (<PhoneFrame><StoryPhone start={step} sel0={sel} /></PhoneFrame>); }
+
+function StoryPhone({ start, sel0 }) {
+  const [step, setStep] = React.useState(start);
+  const [sel, setSel] = React.useState(sel0);
+  return <BookingApp step={step} sel={sel} setStep={setStep} setSel={setSel} />;
+}
+
+function PhoneScene({ step, sel, num, cap }) {
+  return (
+    <div style={{ width: 372, flex: '0 0 auto' }}>
+      <Scene step={step} sel={sel} />
+      <div style={{ marginTop: 16, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+        <span style={{ width: 26, height: 26, borderRadius: 9, flex: '0 0 auto', background: 'var(--brand-subtle)', color: 'var(--teal-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font, fontWeight: 900, fontSize: 13 }}>{num}</span>
+        <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.65, color: 'var(--text-body)' }}>{cap}</p>
+      </div>
+    </div>
+  );
+}
+
+const PHONES = [
+  { step: 0, num: '١', sel: {}, cap: 'الرئيسية — ترحيب باسم العميل، الموعد القادم، وأزرار حجز سريع.' },
+  { step: 1, num: '٢', sel: {}, cap: 'اختيار الفرع — أقرب فرع بالمسافة وساعات العمل.' },
+  { step: 2, num: '٣', sel: { branch: CHOSEN.branch }, cap: 'اختيار الخدمة — تنظيف أسنان، المدة والسعر واضحان.' },
+  { step: 4, num: '٤', sel: { ...CHOSEN, time: undefined }, cap: 'اختيار الوقت — المواعيد المحجوزة مشطوبة (منع التعارض).' },
+  { step: 5, num: '٥', sel: CHOSEN, cap: 'المراجعة — ملخص الحجز، الإجمالي، وتنبيه التذكير قبل الحفظ.' },
+  { step: 6, num: '٦', sel: CHOSEN, cap: 'التذكرة — تأكيد فوري برمز حجز MA-4821 قابل للحفظ.' },
+  { step: 7, num: '٧', sel: CHOSEN, cap: 'التذكير — إشعار Push ورسالة WhatsApp قبل الموعد.' },
+];
+
+function BrowserFrame({ children }) {
+  return (
+    <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 40px 90px -30px rgba(6,60,60,.5)', border: '1px solid var(--border-default)', background: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--gray-100)', borderBottom: '1px solid var(--border-subtle)' }}>
+        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef6a5f' }} />
+        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#f6bd3b' }} />
+        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#61c554' }} />
+        <div style={{ marginInlineStart: 14, display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '6px 16px', fontSize: 12.5, color: 'var(--text-muted)' }}>
+          <Icon name="lock" size={12} color="var(--text-muted)" />admin.meaad.sa / اليوم
+        </div>
+      </div>
+      <div style={{ height: 860 }}>{children}</div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <div className="wrap">
+      <Hero />
+
+      <Act n="١" kicker="سطح العميل" title="العميل يحجز موعده"
+        desc="تطبيق موبايل بواجهة جريئة: خطوات قصيرة بمؤشر تقدّم واضح — فرع، خدمة، طبيب، وقت، مراجعة، ثم تذكرة مؤكدة. مرِّر الشاشات أفقياً، وكل شاشة قابلة للتجربة." />
+      <div className="rail">
+        {PHONES.map(p => <PhoneScene key={p.num} step={p.step} sel={p.sel} num={p.num} cap={p.cap} />)}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '46px 0', padding: '20px 26px', borderRadius: 18, background: 'linear-gradient(120deg,var(--teal-700),var(--teal-600))', color: '#fff', boxShadow: 'var(--shadow-md)' }}>
+        <Icon name="arrow-down" size={24} color="#fff" />
+        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17 }}>لحظة الضغط على «تأكيد الحجز» يصل الموعد فوراً إلى مركز تحكم الإدارة — بحالة «قيد الانتظار».</div>
+      </div>
+
+      <Act n="٢" kicker="سطح الإدارة" title="الإدارة تستقبل، تؤكّد، وتذكّر"
+        desc="مركز تحكم بواجهة سطح مكتب: جدول اليوم يبرز حجز سارة الجديد. من «مراجعة وتأكيد» يعيد الموظف التحقق من التوفّر (مع منع تعارض الحجوزات)، ثم يؤكد فيُرسَل الإشعار وتُجدوَل التذكيرات. تنقّل بين الأقسام الأربعة." />
+      <BrowserFrame><AdminDashboard initialTab="agenda" /></BrowserFrame>
+
+      <footer style={{ marginTop: 60, paddingTop: 26, borderTop: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text-muted)', fontSize: 13.5 }}>
+        <Icon name="check-check" size={17} color="var(--green-500)" />
+        قصة واحدة متصلة: نفس الموعد (5:00 م، 12 أغسطس) يظهر في التطبيق ولوحة التحكم ولوحة الإشعارات.
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

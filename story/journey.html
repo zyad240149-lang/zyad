@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ميعاد — رحلة اليوزر ستوري</title>
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/fonts.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/colors.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/typography.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/spacing.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/shadows.css">
+<link rel="stylesheet" href="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/styles.css">
+<style>
+  html,body{margin:0}
+  body{background:#e9efee;font-family:var(--font-body);color:var(--text-body)}
+  a{color:var(--text-link)}a:hover{color:var(--teal-700)}
+  .wrap{max-width:1400px;margin:0 auto;padding:0 40px 90px}
+  ::selection{background:var(--teal-200)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+<script src="../_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/_ds_bundle.js"></script>
+<script type="text/babel">
+const { Icon } = window.MeaadDesignSystem_54b82a;
+const font = 'var(--font-display)';
+
+const CUSTOMER = [
+  { ic:'smartphone', title:'تفتح التطبيق', story:'كعميلة، أرى الرئيسية باسمي وموعدي القادم وأزرار حجز سريع.', tag:'الرئيسية' },
+  { ic:'map-pin', title:'تختار الفرع', story:'أختار أقرب فرع بالمسافة وساعات العمل.', tag:'الفرع' },
+  { ic:'sparkles', title:'تختار الخدمة', story:'أرى المدة والسعر لكل خدمة قبل الاختيار.', tag:'الخدمة' },
+  { ic:'stethoscope', title:'تختار الطبيب', story:'أختار الطبيب المتاح مع تقييمه.', tag:'الطبيب' },
+  { ic:'clock', title:'تختار الوقت', story:'المواعيد المحجوزة مشطوبة — لا أستطيع حجز وقت مأخوذ.', tag:'Slot' },
+  { ic:'clipboard-check', title:'تراجع وتؤكد', story:'أرى ملخص الحجز والإجمالي وتنبيهاً بأن تذكيراً سيصلني.', tag:'المراجعة' },
+  { ic:'ticket-check', title:'تستلم التذكرة', story:'يظهر تأكيد فوري برمز حجز MA-4821 قابل للحفظ.', tag:'تأكيد' },
+  { ic:'bell-ring', title:'يصلك التذكير', story:'أستلم إشعار Push ورسالة WhatsApp قبل الموعد.', tag:'تذكير' },
+];
+
+const ADMIN = [
+  { ic:'inbox', title:'يستقبل الحجز', story:'كموظف، أرى حجز سارة الجديد مُبرزاً في جدول اليوم بحالة قيد الانتظار.', tag:'قيد الانتظار' },
+  { ic:'search-check', title:'يعيد التحقق من التوفّر', story:'أراجع التوفّر — النظام يمنع تعارض الحجوزات (Double Booking).', tag:'Availability' },
+  { ic:'check-check', title:'يؤكّد ويُرسِل', story:'أؤكد الحجز فيُرسَل إشعار التأكيد للعميل تلقائياً.', tag:'Confirmed' },
+  { ic:'bell', title:'يضبط التذكيرات', story:'أفعّل تذكير قبل 24 ساعة وقبل ساعة، كل منهما قابل للإيقاف.', tag:'Reminder' },
+  { ic:'message-circle', title:'يختار القناة', story:'أختار قناة الإرسال: WhatsApp أو SMS أو Email.', tag:'Channel' },
+  { ic:'activity', title:'يتابع الحالة', story:'أتابع كل إشعار: مجدول ← مُرسل ← مُستلَم / فشل.', tag:'Notification' },
+];
+
+function Header(){
+  return (
+    <header style={{padding:'54px 0 8px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
+        <div style={{width:44,height:44,borderRadius:14,background:'var(--brand)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:font,fontWeight:900,fontSize:23,boxShadow:'var(--shadow-brand)'}}>م</div>
+        <span style={{fontFamily:font,fontWeight:900,fontSize:24,color:'var(--text-strong)'}}>ميعاد</span>
+        <span style={{marginInlineStart:8,fontSize:13,fontWeight:700,color:'var(--teal-700)',background:'var(--brand-subtle)',border:'1px solid var(--brand-border)',padding:'5px 13px',borderRadius:999}}>رحلة اليوزر ستوري · User Story Map</span>
+      </div>
+      <h1 style={{fontFamily:font,fontWeight:900,fontSize:42,lineHeight:1.2,color:'var(--text-strong)',margin:0,maxWidth:900,textWrap:'balance'}}>رحلة موعد واحد عبر سطحَي المنتج</h1>
+      <p style={{fontSize:16.5,lineHeight:1.8,color:'var(--text-muted)',maxWidth:760,marginTop:14}}>
+        نتابع حجز «سارة عبدالله» (تنظيف أسنان · 5:00 م · 12 أغسطس) من ضغطتها الأولى في تطبيق العميل حتى تتبّع الإدارة لحالة الإشعار. كل خطوة مكتوبة كـ user story.
+      </p>
+    </header>
+  );
+}
+
+function LaneHead({ic,label,sub,tone}){
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:13,marginBottom:16}}>
+      <div style={{width:46,height:46,borderRadius:14,background:`color-mix(in srgb, ${tone} 14%, white)`,color:tone,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon name={ic} size={24}/></div>
+      <div><div style={{fontFamily:font,fontWeight:900,fontSize:20,color:'var(--text-strong)'}}>{label}</div>
+      <div style={{fontSize:13,color:'var(--text-muted)'}}>{sub}</div></div>
+    </div>
+  );
+}
+
+function StepCard({s,i,tone}){
+  return (
+    <div style={{flex:'0 0 auto',width:224,background:'#fff',borderRadius:18,border:'1px solid var(--border-subtle)',boxShadow:'var(--shadow-sm)',padding:18,position:'relative'}}>
+      <div style={{display:'flex',alignItems:'center',gap:10}}>
+        <div style={{width:38,height:38,borderRadius:12,background:`color-mix(in srgb, ${tone} 13%, white)`,color:tone,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon name={s.ic} size={20}/></div>
+        <span style={{marginInlineStart:'auto',fontFamily:font,fontWeight:900,fontSize:13,color:'var(--gray-300)'}}>{String(i+1).padStart(2,'0')}</span>
+      </div>
+      <div style={{fontFamily:font,fontWeight:800,fontSize:16,color:'var(--text-strong)',marginTop:12}}>{s.title}</div>
+      <p style={{fontSize:12.8,lineHeight:1.65,color:'var(--text-muted)',margin:'6px 0 12px'}}>{s.story}</p>
+      <span style={{display:'inline-flex',fontSize:11,fontWeight:700,color:tone,background:`color-mix(in srgb, ${tone} 10%, white)`,padding:'4px 11px',borderRadius:999}}>{s.tag}</span>
+    </div>
+  );
+}
+
+function Lane({steps,tone}){
+  return (
+    <div style={{display:'flex',gap:12,alignItems:'stretch',overflowX:'auto',padding:'4px 4px 18px'}}>
+      {steps.map((s,i)=>(
+        <React.Fragment key={s.title}>
+          <StepCard s={s} i={i} tone={tone}/>
+          {i<steps.length-1 && <div style={{flex:'0 0 auto',alignSelf:'center',color:'var(--gray-300)'}}><Icon name="chevron-left" size={22}/></div>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function Bridge(){
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:14,margin:'10px 0 34px',padding:'18px 24px',borderRadius:18,background:'linear-gradient(120deg,var(--teal-700),var(--teal-600))',color:'#fff',boxShadow:'var(--shadow-md)'}}>
+      <Icon name="git-merge" size={24} color="#fff"/>
+      <div style={{fontFamily:font,fontWeight:800,fontSize:16.5,lineHeight:1.5}}>نقطة التقاطع — لحظة ضغط «تأكيد الحجز» يصل الموعد فوراً إلى مركز تحكم الإدارة بحالة «قيد الانتظار».</div>
+    </div>
+  );
+}
+
+function App(){
+  return (
+    <div className="wrap">
+      <Header/>
+      <div style={{marginTop:34,background:'#fff',borderRadius:24,border:'1px solid var(--border-subtle)',boxShadow:'var(--shadow-sm)',padding:'26px 26px 10px'}}>
+        <LaneHead ic="smartphone" label="سطح العميل — User" sub="8 خطوات · تطبيق موبايل" tone="var(--brand)"/>
+        <Lane steps={CUSTOMER} tone="var(--teal-500)"/>
+      </div>
+      <div style={{margin:'26px 0'}}><Bridge/></div>
+      <div style={{background:'#fff',borderRadius:24,border:'1px solid var(--border-subtle)',boxShadow:'var(--shadow-sm)',padding:'26px 26px 10px'}}>
+        <LaneHead ic="monitor" label="سطح الإدارة — Admin" sub="6 خطوات · مركز التحكم" tone="var(--amber-600)"/>
+        <Lane steps={ADMIN} tone="var(--amber-600)"/>
+      </div>
+      <footer style={{marginTop:44,paddingTop:24,borderTop:'1px solid var(--border-default)',display:'flex',alignItems:'center',gap:12,color:'var(--text-muted)',fontSize:14}}>
+        <Icon name="check-check" size={17} color="var(--green-500)"/>
+        جرّب الرحلة تفاعلياً في <a href="index.html">تصور المنتج (Storyboard)</a> — نفس الموعد في التطبيق ولوحة التحكم.
+      </footer>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

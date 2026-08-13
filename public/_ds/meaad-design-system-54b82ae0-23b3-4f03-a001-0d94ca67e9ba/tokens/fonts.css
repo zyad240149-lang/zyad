@@ -1,0 +1,8 @@
+/* Meaad webfonts — served from Google Fonts.
+   Both families support Arabic + Latin, matching the platform's bilingual UI.
+   Tajawal  → display / headings / UI labels (geometric, confident)
+   Almarai  → body / long-form Arabic (high legibility at small sizes)
+   NOTE: binaries are loaded from Google's CDN via @import (the build sandbox
+   cannot bundle the .woff2 files). Replace with self-hosted @font-face if the
+   brand requires offline assets. */
+@import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Tajawal:wght@400;500;700;800;900&display=swap');
