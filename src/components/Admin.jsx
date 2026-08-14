@@ -5,7 +5,7 @@ import { MeaadStory as AS } from '../data.js';
 import { useAuth, toLocalPhone, toStoredPhone } from '../lib/auth/AuthContext.jsx';
 import { listAllAppointments, updateAppointmentStatus, updateAppointment, createAppointment, deleteAppointment, isSlotTaken, listTakenTimes } from '../lib/api/appointments.js';
 import { listRolesWithPermissions, setRolePermission, listStaff, addPermissionModule, deletePermissionModule, addRole, deleteRole } from '../lib/api/staff.js';
-import { listBranches, listServices, listDoctors, listCustomers, listCustomersDetailed, updateCustomer, addBranch, addService, updateService } from '../lib/api/reference.js';
+import { listBranches, listDoctors, listCustomers, listCustomersDetailed, updateCustomer, addBranch, addService, updateService } from '../lib/api/reference.js';
 import { getDoctorSchedule, setDayActive, addSchedulePeriod, deleteSchedulePeriod, listDoctorServices, setDoctorService, updateDoctorSettings, getBranchSchedule, setBranchDayActive, addBranchSchedulePeriod, deleteBranchSchedulePeriod } from '../lib/api/availability.js';
 import { formatArabicTime } from '../lib/time.js';
 
@@ -398,7 +398,6 @@ function SidePanel({ appointments, onEdit }) {
 // ---------- Edit / confirm modal (availability + double-booking) ----------
 function AppointmentModal({ appt, onClose, onSaved }) {
   const [branches, setBranches] = useState([]);
-  const [services, setServices] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loadingLists, setLoadingLists] = useState(true);
 
@@ -421,13 +420,20 @@ function AppointmentModal({ appt, onClose, onSaved }) {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
+  const [doctorServices, setDoctorServices] = useState([]);
 
   useEffect(() => {
-    Promise.all([listBranches(), listServices(), listDoctors()])
-      .then(([b, s, d]) => { setBranches(b); setServices(s); setDoctors(d); })
+    Promise.all([listBranches(), listDoctors()])
+      .then(([b, d]) => { setBranches(b); setDoctors(d); })
       .catch(e => setError(e.message))
       .finally(() => setLoadingLists(false));
   }, []);
+
+  // Scope the service dropdown to what this doctor actually offers (specialty-correct).
+  useEffect(() => {
+    if (!doctorId) { setDoctorServices([]); return; }
+    listDoctorServices(doctorId).then(list => setDoctorServices(list.filter(s => s.enabled))).catch(() => setDoctorServices([]));
+  }, [doctorId]);
 
   // Fetch every taken slot for this doctor/date so the picker can mark them (محجوز)
   // rather than just silently blocking the currently-selected one.
@@ -516,7 +522,7 @@ function AppointmentModal({ appt, onClose, onSaved }) {
                 </Select>
               </Field>
               <Field label="الطبيب">
-                <Select value={doctorId} onChange={e => setDoctorId(e.target.value)} disabled={!branchId} placeholder={branchId ? undefined : 'اختر الفرع أولاً'}>
+                <Select value={doctorId} onChange={e => { setDoctorId(e.target.value); if (serviceMode === 'existing') setServiceId(''); }} disabled={!branchId} placeholder={branchId ? undefined : 'اختر الفرع أولاً'}>
                   {doctors.filter(d => !d.branch_id || d.branch_id === branchId).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </Select>
               </Field>
@@ -529,9 +535,9 @@ function AppointmentModal({ appt, onClose, onSaved }) {
                 ))}
               </div>
               {serviceMode === 'existing' ? (
-                <Field label="الخدمة">
-                  <Select value={serviceId} onChange={e => setServiceId(e.target.value)} placeholder="اختر الخدمة">
-                    {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                <Field label="الخدمة" hint={!doctorId ? undefined : (doctorServices.length === 0 ? 'هذا الطبيب لا يقدّم أي خدمة حالياً' : undefined)}>
+                  <Select value={serviceId} onChange={e => setServiceId(e.target.value)} disabled={!doctorId} placeholder={doctorId ? 'اختر الخدمة' : 'اختر الطبيب أولاً'}>
+                    {doctorServices.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </Select>
                 </Field>
               ) : (
@@ -620,7 +626,6 @@ const TIME_OPTIONS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:
 function AddAppointmentModal({ onClose, onCreated }) {
   const [customers, setCustomers] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [services, setServices] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loadingLists, setLoadingLists] = useState(true);
 
@@ -644,10 +649,11 @@ function AddAppointmentModal({ onClose, onCreated }) {
   const [takenTimes, setTakenTimes] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [doctorServices, setDoctorServices] = useState([]);
 
   useEffect(() => {
-    Promise.all([listCustomers(), listBranches(), listServices(), listDoctors()])
-      .then(([c, b, s, d]) => { setCustomers(c); setBranches(b); setServices(s); setDoctors(d); })
+    Promise.all([listCustomers(), listBranches(), listDoctors()])
+      .then(([c, b, d]) => { setCustomers(c); setBranches(b); setDoctors(d); })
       .catch(e => setError(e.message))
       .finally(() => setLoadingLists(false));
   }, []);
@@ -658,6 +664,12 @@ function AddAppointmentModal({ onClose, onCreated }) {
     if (!doctorId || !date) { setTakenTimes([]); return; }
     listTakenTimes({ doctorId, date }).then(setTakenTimes).catch(() => setTakenTimes([]));
   }, [doctorId, date]);
+
+  // Scope the service dropdown to what this doctor actually offers (specialty-correct).
+  useEffect(() => {
+    if (!doctorId) { setDoctorServices([]); return; }
+    listDoctorServices(doctorId).then(list => setDoctorServices(list.filter(s => s.enabled))).catch(() => setDoctorServices([]));
+  }, [doctorId]);
 
   useEffect(() => {
     if (!doctorId || !date || !time) { setTaken(false); return; }
@@ -744,7 +756,7 @@ function AddAppointmentModal({ onClose, onCreated }) {
                 </Select>
               </Field>
               <Field label="الطبيب">
-                <Select value={doctorId} onChange={e => setDoctorId(e.target.value)} disabled={!branchId} placeholder={branchId ? 'اختر الطبيب' : 'اختر الفرع أولاً'}>
+                <Select value={doctorId} onChange={e => { setDoctorId(e.target.value); if (serviceMode === 'existing') setServiceId(''); }} disabled={!branchId} placeholder={branchId ? 'اختر الطبيب' : 'اختر الفرع أولاً'}>
                   {doctors.filter(d => !d.branch_id || d.branch_id === branchId).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </Select>
               </Field>
@@ -757,9 +769,9 @@ function AddAppointmentModal({ onClose, onCreated }) {
                 ))}
               </div>
               {serviceMode === 'existing' ? (
-                <Field label="الخدمة">
-                  <Select value={serviceId} onChange={e => setServiceId(e.target.value)} placeholder="اختر الخدمة">
-                    {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                <Field label="الخدمة" hint={doctorId && doctorServices.length === 0 ? 'هذا الطبيب لا يقدّم أي خدمة حالياً' : undefined}>
+                  <Select value={serviceId} onChange={e => setServiceId(e.target.value)} disabled={!doctorId} placeholder={doctorId ? 'اختر الخدمة' : 'اختر الطبيب أولاً'}>
+                    {doctorServices.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </Select>
                 </Field>
               ) : (

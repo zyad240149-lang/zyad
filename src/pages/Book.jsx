@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, toLocalPhone, normalizeEgyptPhone } from '../lib/auth/AuthContext.jsx';
 import { listBranches, listServices, listDoctors, updateCustomer } from '../lib/api/reference.js';
 import { createAppointment, listTakenTimes } from '../lib/api/appointments.js';
-import { getDoctorSchedule, computeSlotsForDay } from '../lib/api/availability.js';
+import { getDoctorSchedule, computeSlotsForDay, listDoctorServices } from '../lib/api/availability.js';
 import { formatArabicTime } from '../lib/time.js';
 import Countdown from '../components/Countdown.jsx';
 
@@ -117,6 +117,8 @@ export default function Book() {
   const [checkingTimes, setCheckingTimes] = useState(false);
   const [takenTimes, setTakenTimes] = useState([]);
   const [schedule, setSchedule] = useState(null);
+  const [doctorServices, setDoctorServices] = useState([]);
+  const [loadingServices, setLoadingServices] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState(null);
@@ -133,6 +135,17 @@ export default function Book() {
   useEffect(() => {
     if (!doctorId) { setSchedule(null); return; }
     getDoctorSchedule(doctorId).then(setSchedule).catch(() => setSchedule(null));
+  }, [doctorId]);
+
+  // Only the services this specific doctor actually performs — a service list scoped
+  // by specialty (e.g. an orthopedist never offers teeth cleaning).
+  useEffect(() => {
+    if (!doctorId) { setDoctorServices([]); return; }
+    setLoadingServices(true);
+    listDoctorServices(doctorId)
+      .then(list => setDoctorServices(list.filter(s => s.enabled)))
+      .catch(() => setDoctorServices([]))
+      .finally(() => setLoadingServices(false));
   }, [doctorId]);
 
   useEffect(() => {
@@ -224,19 +237,19 @@ export default function Book() {
                   <Select value={branchId} onChange={e => {
                     const nextBranchId = e.target.value;
                     setBranchId(nextBranchId);
-                    if (doctor && doctor.branch_id && doctor.branch_id !== nextBranchId) { setDoctorId(''); setTime(''); }
+                    if (doctor && doctor.branch_id && doctor.branch_id !== nextBranchId) { setDoctorId(''); setServiceId(''); setTime(''); }
                   }} placeholder="اختر الفرع">
                     {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </Select>
                 </Field>
-                <Field label="الخدمة">
-                  <Select value={serviceId} onChange={e => setServiceId(e.target.value)} placeholder="اختر الخدمة">
-                    {services.map(s => <option key={s.id} value={s.id}>{s.name} · {s.price} ج</option>)}
+                <Field label="الطبيب">
+                  <Select value={doctorId} onChange={e => { setDoctorId(e.target.value); setServiceId(''); setTime(''); }} disabled={!branchId} placeholder={branchId ? 'اختر الطبيب' : 'اختر الفرع أولاً'}>
+                    {doctorsInBranch.map(d => <option key={d.id} value={d.id}>{d.name}{d.specialty ? ` · ${d.specialty}` : ''}</option>)}
                   </Select>
                 </Field>
-                <Field label="الطبيب">
-                  <Select value={doctorId} onChange={e => { setDoctorId(e.target.value); setTime(''); }} disabled={!branchId} placeholder={branchId ? 'اختر الطبيب' : 'اختر الفرع أولاً'}>
-                    {doctorsInBranch.map(d => <option key={d.id} value={d.id}>{d.name}{d.specialty ? ` · ${d.specialty}` : ''}</option>)}
+                <Field label="الخدمة" hint={doctorId && !loadingServices && doctorServices.length === 0 ? 'هذا الطبيب لا يقدّم أي خدمة حالياً' : undefined}>
+                  <Select value={serviceId} onChange={e => setServiceId(e.target.value)} disabled={!doctorId || loadingServices} placeholder={!doctorId ? 'اختر الطبيب أولاً' : (loadingServices ? 'جارِ التحميل…' : 'اختر الخدمة')}>
+                    {doctorServices.map(s => <option key={s.id} value={s.id}>{s.name} · {s.price} ج</option>)}
                   </Select>
                 </Field>
                 <Field label="التاريخ">
