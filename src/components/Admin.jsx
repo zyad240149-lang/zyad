@@ -14,6 +14,88 @@ const { Icon, Avatar, StatusPill, Field, Select, Alert, Input } = window.MeaadDe
 const font = 'var(--font-display)';
 const body = 'var(--font-body)';
 
+// Mobile shell (<768px): the fixed-width rail becomes an off-canvas drawer so the
+// content can use the full viewport. Desktop keeps the original side-by-side layout —
+// every rule below lives inside the media query, and the rail's desktop width/flex sit
+// in .admin-rail (not inline) so the drawer rules can override them without !important.
+const MOBILE = 768;
+const ADMIN_STYLE = `
+  .admin-rail { width: 232px; flex: 0 0 auto; }
+  .admin-overlay, .admin-menu-btn, .admin-drawer-close { display: none; }
+
+  @media (max-width: ${MOBILE - 1}px) {
+    .admin-rail {
+      position: fixed;
+      top: 0; bottom: 0; right: 0;      /* RTL: drawer slides in from the right */
+      box-sizing: border-box;           /* keep 280px the total width, padding included */
+      width: 280px;
+      max-width: 86vw;
+      z-index: 80;
+      transform: translateX(100%);
+      transition: transform .26s ease;
+      box-shadow: -14px 0 34px -14px rgba(0,0,0,.5);
+    }
+    .admin-rail.is-open { transform: translateX(0); }
+
+    .admin-overlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 75;
+      background: rgba(6,60,60,.42);
+      backdrop-filter: blur(2px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .26s ease;
+      border: none;
+      padding: 0;
+    }
+    .admin-overlay.is-open { opacity: 1; pointer-events: auto; }
+
+    .admin-menu-btn, .admin-drawer-close { display: flex; }
+
+    /* !important is required on these: the components set the same properties as
+       inline styles, which otherwise win over any stylesheet rule. */
+    .admin-topbar { padding: 12px 14px !important; gap: 10px !important; }
+    .admin-topbar-title { font-size: 17px !important; }
+    .admin-topbar-sub { display: none; }
+    .admin-search { display: none !important; }
+    .admin-bell { display: none !important; }
+    .admin-add-label { display: none; }
+    .admin-add-btn { padding: 11px 13px !important; }
+
+    .admin-content { padding: 16px 14px 28px !important; }
+    .admin-kpi { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
+
+    /* Stack the "main list + side panel" layouts and the paired form fields —
+       side by side they collapse to unreadable slivers at phone widths. */
+    .admin-split { grid-template-columns: 1fr !important; gap: 16px !important; }
+    .admin-pair { grid-template-columns: 1fr !important; }
+
+    /* Appointment rows: name/service and the status+confirm controls sat on one
+       line, pushing the confirm button off the (RTL) left edge where it couldn't
+       be reached. Wrap the controls onto their own full-width line instead. */
+    .admin-row-card { flex-wrap: wrap !important; gap: 10px !important; padding: 12px !important; }
+    .admin-row-main { flex: 1 1 auto; min-width: 0; }
+    .admin-row-actions {
+      margin-inline-start: 0 !important;
+      flex: 1 0 100%;
+      justify-content: space-between;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 10px;
+    }
+    /* Smaller avatar so the name and service line get the width they need. */
+    .admin-row-avatar > * { width: 34px !important; height: 34px !important; font-size: 12.5px !important; }
+
+    .admin-modal-backdrop { padding: 12px !important; }
+    .admin-modal { width: 100% !important; max-width: 100% !important; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .admin-rail, .admin-overlay { transition: none; }
+  }
+`;
+
 // ---------- small primitives ----------
 function Ring2({ icon, tone = 'var(--brand)', size = 44 }) {
   return <div style={{ width: size, height: size, borderRadius: 14, flex: '0 0 auto', background: `color-mix(in srgb, ${tone} 14%, white)`, color: tone, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={size * 0.5} /></div>;
@@ -48,7 +130,7 @@ const NAV = [
   ['users-round', 'الموظفون', 'staff'],
   ['shield-check', 'الصلاحيات', 'permissions'],
 ];
-function Rail({ tab, setTab }) {
+function Rail({ tab, setTab, open, onClose }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const initial = (profile?.name || 'م').trim()[0];
@@ -56,20 +138,30 @@ function Rail({ tab, setTab }) {
     await signOut();
     navigate('/login');
   };
+  // On mobile the rail is an overlay drawer, so picking a tab should dismiss it —
+  // on desktop onClose is a no-op since the rail is always visible.
+  const pick = id => { setTab(id); onClose(); };
   return (
-    <div style={{ width: 232, flex: '0 0 auto', background: 'linear-gradient(180deg,var(--teal-800),var(--teal-900))', display: 'flex', flexDirection: 'column', padding: '22px 16px', color: '#fff' }}>
+    <nav
+      className={`admin-rail${open ? ' is-open' : ''}`}
+      aria-label="أقسام مركز التحكم"
+      style={{ background: 'linear-gradient(180deg,var(--teal-800),var(--teal-900))', display: 'flex', flexDirection: 'column', padding: '22px 16px', color: '#fff' }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '0 6px 22px' }}>
         <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font, fontWeight: 900, fontSize: 20, boxShadow: 'var(--shadow-brand)' }}>م</div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: font, fontWeight: 900, fontSize: 20, lineHeight: 1 }}>ميعاد</div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>مركز التحكم</div>
         </div>
+        <button className="admin-drawer-close" onClick={onClose} aria-label="إغلاق القائمة" style={{ width: 34, height: 34, borderRadius: 10, border: 'none', background: 'rgba(255,255,255,.12)', color: '#fff', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+          <Icon name="x" size={17} color="#fff" />
+        </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {NAV.map(([ic, lb, id]) => {
           const on = tab === id;
           return (
-            <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 13, cursor: 'pointer', border: 'none', textAlign: 'start', fontFamily: font, fontWeight: 700, fontSize: 14.5, transition: 'all .15s', background: on ? 'rgba(255,255,255,.14)' : 'transparent', color: on ? '#fff' : 'rgba(255,255,255,.62)' }}>
+            <button key={id} onClick={() => pick(id)} aria-current={on ? 'page' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 13, cursor: 'pointer', border: 'none', textAlign: 'start', fontFamily: font, fontWeight: 700, fontSize: 14.5, transition: 'all .15s', background: on ? 'rgba(255,255,255,.14)' : 'transparent', color: on ? '#fff' : 'rgba(255,255,255,.62)' }}>
               <Icon name={ic} size={20} color={on ? '#fff' : 'rgba(255,255,255,.62)'} />{lb}
               {id === 'agenda' && <span style={{ marginInlineStart: 'auto', fontSize: 11, background: 'var(--amber-500)', color: 'var(--teal-900)', fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>24</span>}
             </button>
@@ -86,7 +178,7 @@ function Rail({ tab, setTab }) {
           <Icon name="log-out" size={15} />
         </button>
       </div>
-    </div>
+    </nav>
   );
 }
 
@@ -179,24 +271,27 @@ function BranchSwitcher({ branches, selectedBranchId, onSelect, onBranchAdded })
   );
 }
 
-function Topbar({ tab, onAdd, branches, selectedBranchId, onSelectBranch, onBranchAdded }) {
+function Topbar({ tab, onAdd, onMenu, branches, selectedBranchId, onSelectBranch, onBranchAdded }) {
   const m = TAB_META[tab];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 26px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--white)', flex: '0 0 auto' }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 21, color: 'var(--text-strong)' }}>{m.title}</div>
-        <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>{m.sub}</div>
+    <div className="admin-topbar" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 26px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--white)', flex: '0 0 auto' }}>
+      <button className="admin-menu-btn" onClick={onMenu} aria-label="فتح القائمة" style={{ width: 42, height: 42, borderRadius: 13, border: '1px solid var(--border-subtle)', background: 'var(--white)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+        <Icon name="menu" size={20} color="var(--text-body)" />
+      </button>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="admin-topbar-title" style={{ fontFamily: font, fontWeight: 800, fontSize: 21, color: 'var(--text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
+        <div className="admin-topbar-sub" style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>{m.sub}</div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-page)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '9px 16px', width: 240 }}>
+      <div className="admin-search" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-page)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '9px 16px', width: 240 }}>
         <Icon name="search" size={17} color="var(--text-muted)" />
         <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>بحث عن عميل أو موعد…</span>
       </div>
-      <button style={{ width: 42, height: 42, borderRadius: 13, border: '1px solid var(--border-subtle)', background: 'var(--white)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      <button className="admin-bell" style={{ width: 42, height: 42, borderRadius: 13, border: '1px solid var(--border-subtle)', background: 'var(--white)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flex: '0 0 auto' }}>
         <Icon name="bell" size={19} color="var(--text-body)" />
         <span style={{ position: 'absolute', top: 9, insetInlineEnd: 10, width: 8, height: 8, borderRadius: '50%', background: 'var(--amber-500)', border: '2px solid #fff' }} />
       </button>
-      <button onClick={onAdd} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: 999, border: 'none', cursor: 'pointer', background: 'var(--brand)', color: '#fff', fontFamily: font, fontWeight: 800, fontSize: 14.5, boxShadow: 'var(--shadow-brand)' }}>
-        <Icon name="plus" size={19} color="#fff" stroke={2.5} />إضافة موعد
+      <button className="admin-add-btn" onClick={onAdd} aria-label="إضافة موعد" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: 999, border: 'none', cursor: 'pointer', background: 'var(--brand)', color: '#fff', fontFamily: font, fontWeight: 800, fontSize: 14.5, boxShadow: 'var(--shadow-brand)', flex: '0 0 auto' }}>
+        <Icon name="plus" size={19} color="#fff" stroke={2.5} /><span className="admin-add-label">إضافة موعد</span>
       </button>
       <BranchSwitcher branches={branches} selectedBranchId={selectedBranchId} onSelect={onSelectBranch} onBranchAdded={onBranchAdded} />
     </div>
@@ -218,7 +313,7 @@ function KpiRow({ appointments }) {
     { label: 'نسبة التأكيد', value: `${occupancy}%`, icon: 'activity', tone: 'info' },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+    <div className="admin-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
       {kpis.map(k => { const t = TONE[k.tone]; return (
         <Card2 key={k.label} pad={18}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -279,7 +374,7 @@ function AgendaTab({ appointments, loading, error, onEdit }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <KpiRow appointments={appointments} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="admin-split" style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 20, alignItems: 'start' }}>
         <Card2 pad={0} style={{ overflow: 'hidden' }}>
           <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
             <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>جدول اليوم</div>
@@ -313,10 +408,10 @@ function AgendaRow({ a, last, onEdit }) {
         <div style={{ width: 11, height: 11, borderRadius: '50%', marginTop: 8, background: a.isNew ? 'var(--amber-500)' : cancelled ? 'var(--red-500)' : 'var(--brand)', border: '2px solid #fff', boxShadow: '0 0 0 3px ' + (a.isNew ? 'var(--amber-100)' : 'var(--gray-100)') }} />
         {!last && <div style={{ flex: 1, width: 2, background: 'var(--border-subtle)', marginTop: 4 }} />}
       </div>
-      <div style={{ flex: 1, margin: '8px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 14, borderRadius: 16, background: a.isNew ? 'var(--amber-50)' : 'var(--surface-page)', border: a.isNew ? '1.5px solid var(--amber-200)' : '1px solid var(--border-subtle)', opacity: cancelled ? 0.6 : 1 }}>
-          <Avatar name={a.customer} />
-          <div style={{ minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, margin: '8px 0' }}>
+        <div className="admin-row-card" style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 14, borderRadius: 16, background: a.isNew ? 'var(--amber-50)' : 'var(--surface-page)', border: a.isNew ? '1.5px solid var(--amber-200)' : '1px solid var(--border-subtle)', opacity: cancelled ? 0.6 : 1 }}>
+          <span className="admin-row-avatar"><Avatar name={a.customer} /></span>
+          <div className="admin-row-main" style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontFamily: font, fontWeight: 800, color: 'var(--text-strong)', fontSize: 15, textDecoration: cancelled ? 'line-through' : 'none' }}>{a.customer}</span>
               {a.isNew && <span style={{ fontSize: 10.5, fontWeight: 800, background: 'var(--amber-500)', color: 'var(--teal-900)', padding: '2px 8px', borderRadius: 999 }}>حجز جديد</span>}
@@ -324,7 +419,7 @@ function AgendaRow({ a, last, onEdit }) {
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{a.service} · {a.doctor}{a.price != null ? ` · ${a.price} ج` : ''}</div>
             <div style={{ marginTop: 4 }}><CountdownBadge date={a.date} time={a.time} status={a.status} /></div>
           </div>
-          <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="admin-row-actions" style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <StatusPill status={a.status} />
             {a.isNew
               ? <button onClick={() => onEdit(a)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, border: 'none', cursor: 'pointer', background: 'var(--brand)', color: '#fff', fontFamily: font, fontWeight: 700, fontSize: 13 }}><Icon name="check" size={15} color="#fff" stroke={2.5} />تأكيد</button>
@@ -488,8 +583,8 @@ function AppointmentModal({ appt, onClose, onSaved }) {
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
-      <div style={{ width: 560, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
+    <div className="admin-modal-backdrop" style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+      <div className="admin-modal" style={{ width: 560, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: font, fontWeight: 800, fontSize: 19, color: 'var(--text-strong)' }}>{saved ? 'تم حفظ الموعد' : 'تعديل الموعد'}</div>
@@ -510,7 +605,7 @@ function AppointmentModal({ appt, onClose, onSaved }) {
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13.5 }}>جارِ التحميل…</div>
         ) : (
           <div style={{ padding: 24 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <Field label="الفرع">
                 <Select value={branchId} onChange={e => {
                   const nextBranchId = e.target.value;
@@ -547,7 +642,7 @@ function AppointmentModal({ appt, onClose, onSaved }) {
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
+            <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
               <Field label="السعر (ج.م)">
                 <Input type="number" min="0" step="0.01" iconStart="coins" placeholder="اكتب السعر" value={price} onChange={e => setPrice(e.target.value)} />
               </Field>
@@ -707,8 +802,8 @@ function AddAppointmentModal({ onClose, onCreated }) {
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
-      <div style={{ width: 560, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
+    <div className="admin-modal-backdrop" style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+      <div className="admin-modal" style={{ width: 560, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: font, fontWeight: 800, fontSize: 19, color: 'var(--text-strong)' }}>إضافة موعد</div>
@@ -734,7 +829,7 @@ function AddAppointmentModal({ onClose, onCreated }) {
                 </Select>
               </Field>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <Field label="اسم العميل">
                   <Input iconStart="user-round" placeholder="مثال: أحمد سامي" value={newName} onChange={e => setNewName(e.target.value)} />
                 </Field>
@@ -744,7 +839,7 @@ function AddAppointmentModal({ onClose, onCreated }) {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
+            <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
               <Field label="الفرع">
                 <Select value={branchId} onChange={e => {
                   const nextBranchId = e.target.value;
@@ -781,7 +876,7 @@ function AddAppointmentModal({ onClose, onCreated }) {
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
+            <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
               <Field label="السعر (ج.م)">
                 <Input type="number" min="0" step="0.01" iconStart="coins" placeholder="اكتب السعر" value={price} onChange={e => setPrice(e.target.value)} />
               </Field>
@@ -850,7 +945,7 @@ function RemindersTab() {
   const toggleRem = id => setRem(rem.map(r => r.id === id ? { ...r, on: !r.on } : r));
   const toggleCh = id => setCh(ch.map(c => c.id === id ? { ...c, on: !c.on } : c));
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr', gap: 20, alignItems: 'start' }}>
+    <div className="admin-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr', gap: 20, alignItems: 'start' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <Card2>
           <SectionTitle sub="يُرسَل تلقائياً لكل موعد مؤكد">جدولة التذكيرات</SectionTitle>
@@ -910,7 +1005,7 @@ function NotificationsBoard() {
   return (
     <Card2 style={{ height: '100%' }}>
       <SectionTitle sub="متابعة كل إشعار: مجدول ← مُرسل ← مُستلَم">لوحة حالة الإشعارات</SectionTitle>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+      <div className="admin-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
         {N_COLS.map(([st, lb]) => {
           const items = AS.notifications.filter(n => n.status === st);
           const col = `var(--status-${st})`;
@@ -1073,7 +1168,7 @@ function DoctorAvailabilityPanel({ doctor, appointments = [], onBack }) {
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13.5 }}>جارِ التحميل…</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 20, alignItems: 'start' }}>
+        <div className="admin-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 20, alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card2>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
@@ -1356,7 +1451,7 @@ function DoctorsTab() {
         {error && <div style={{ marginBottom: 16 }}><Alert tone="danger">{error}</Alert></div>}
         {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13.5 }}>جارِ التحميل…</div>}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {doctors.map(d => {
             const doctorAppointments = appointments.filter(a => a.doctorId === d.id && a.status !== 'cancelled');
             return (
@@ -1388,7 +1483,7 @@ function DoctorsTab() {
           <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>الفروع</div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginInlineStart: 10 }}>حدد أوقات عمل كل فرع</div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {branches.map(b => (
             <Card2 key={b.id}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1415,7 +1510,7 @@ function AccountingTab() {
   const cards = [['إيراد اليوم', t.today + ' ج', 'coins', 'var(--brand)'], ['إيراد الشهر', t.month + ' ج', 'trending-up', 'var(--green-500)'], ['فواتير مدفوعة', t.paidCount, 'check-circle', 'var(--blue-500)'], ['قيد التحصيل', t.pendingCount, 'clock', 'var(--amber-600)']];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+      <div className="admin-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
         {cards.map(([l, v, ic, tone]) => (
           <Card2 key={l} pad={18}>
             <Ring2 icon={ic} tone={tone} size={40} />
@@ -1424,7 +1519,7 @@ function AccountingTab() {
           </Card2>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 20, alignItems: 'start' }}>
+      <div className="admin-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 20, alignItems: 'start' }}>
         <Card2>
           <SectionTitle sub="حسب الخدمة">توزيع الإيراد</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
@@ -1443,7 +1538,8 @@ function AccountingTab() {
         </Card2>
         <Card2 pad={0} style={{ overflow: 'hidden' }}>
           <div style={{ padding: '18px 22px 12px', fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>أحدث الفواتير</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, minWidth: 520 }}>
             <thead><tr style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'start' }}>
               {['رقم', 'العميل', 'الخدمة', 'الطريقة', 'المبلغ', 'الحالة'].map(h => <th key={h} style={{ textAlign: 'start', fontWeight: 600, padding: '10px 22px', borderBottom: '1px solid var(--border-subtle)' }}>{h}</th>)}
             </tr></thead>
@@ -1460,6 +1556,7 @@ function AccountingTab() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card2>
       </div>
     </div>
@@ -1491,8 +1588,8 @@ function CustomerEditModal({ customer, onClose, onSaved }) {
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
-      <div style={{ width: 480, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
+    <div className="admin-modal-backdrop" style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+      <div className="admin-modal" style={{ width: 480, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
           <div style={{ fontFamily: font, fontWeight: 800, fontSize: 19, color: 'var(--text-strong)' }}>تعديل بيانات العميل</div>
           <button onClick={onClose} style={{ marginInlineStart: 'auto', width: 38, height: 38, borderRadius: 11, border: '1px solid var(--border-subtle)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={19} color="var(--text-body)" /></button>
@@ -1605,7 +1702,8 @@ function CustomersTab({ appointments }) {
           <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13.5 }}>لا يوجد عملاء بعد.</div>
         )}
         {!loading && !error && filtered.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, minWidth: 780 }}>
             <thead>
               <tr style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'start' }}>
                 {['العميل', 'رقم الهاتف', 'عميل منذ', 'الخدمات', 'إجمالي الحجوزات', 'قادمة', 'الفرع الأساسي', 'الحالة', ''].map(h => (
@@ -1654,6 +1752,7 @@ function CustomersTab({ appointments }) {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </Card2>
       {editing && (
@@ -1691,8 +1790,8 @@ function AddStaffModal({ branches, roleNames, onClose, onSave }) {
   const [role, setRole] = useState(roleNames[0]);
   const canSave = name && email && phone;
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
-      <div style={{ width: 540, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
+    <div className="admin-modal-backdrop" style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+      <div className="admin-modal" style={{ width: 540, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: font, fontWeight: 800, fontSize: 19, color: 'var(--text-strong)' }}>إضافة موظف</div>
@@ -1701,7 +1800,7 @@ function AddStaffModal({ branches, roleNames, onClose, onSave }) {
           <button onClick={onClose} style={{ marginInlineStart: 'auto', width: 38, height: 38, borderRadius: 11, border: '1px solid var(--border-subtle)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={19} color="var(--text-body)" /></button>
         </div>
         <div style={{ padding: 24 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <Field label="الاسم الكامل"><Input iconStart="user-round" value={name} onChange={e => setName(e.target.value)} placeholder="مثال: مريم فتحي" /></Field>
             <Field label="الدور / الصلاحية">
               <Select value={role} onChange={e => setRole(e.target.value)}>
@@ -1991,6 +2090,17 @@ function AdminDashboard({ initialTab = 'agenda' }) {
   const [apptsError, setApptsError] = useState('');
   const [branches, setBranches] = useState([]);
   const [selectedBranchId, setSelectedBranchId] = useState(null);
+  const [navOpen, setNavOpen] = useState(false);
+
+  // Keep the drawer from staying "open" in state once the layout is back on desktop,
+  // where the rail is permanently visible and the overlay would just block clicks.
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth >= MOBILE) setNavOpen(false); };
+    const onKey = e => { if (e.key === 'Escape') setNavOpen(false); };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); };
+  }, []);
 
   const refetchAppointments = () => {
     setApptsLoading(true);
@@ -2009,17 +2119,25 @@ function AdminDashboard({ initialTab = 'agenda' }) {
 
   return (
     <div style={{ position: 'relative', display: 'flex', height: '100%', background: 'var(--surface-page)', fontFamily: body, direction: 'rtl', overflow: 'hidden' }}>
-      <Rail tab={tab} setTab={setTab} />
+      <style>{ADMIN_STYLE}</style>
+      <Rail tab={tab} setTab={setTab} open={navOpen} onClose={() => setNavOpen(false)} />
+      <button
+        className={`admin-overlay${navOpen ? ' is-open' : ''}`}
+        onClick={() => setNavOpen(false)}
+        aria-label="إغلاق القائمة"
+        tabIndex={navOpen ? 0 : -1}
+      />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Topbar
           tab={tab}
           onAdd={() => setShowAddAppt(true)}
+          onMenu={() => setNavOpen(true)}
           branches={branches}
           selectedBranchId={selectedBranchId}
           onSelectBranch={setSelectedBranchId}
           onBranchAdded={b => setBranches(bs => [...bs, b].sort((x, y) => x.name.localeCompare(y.name, 'ar')))}
         />
-        <div style={{ flex: 1, overflowY: 'auto', padding: 26 }}>
+        <div className="admin-content" style={{ flex: 1, overflowY: 'auto', padding: 26 }}>
           {tab === 'agenda' && <AgendaTab appointments={visibleAppointments} loading={apptsLoading} error={apptsError} onEdit={setModal} />}
           {tab === 'availability' && <DoctorsTab />}
           {tab === 'customers' && <CustomersTab appointments={appointments} />}
