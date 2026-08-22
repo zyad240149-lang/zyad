@@ -33,3 +33,14 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+// Registered after load so fetching the worker never competes with the first paint.
+// Dev is skipped: the cache-first rules would serve stale modules over Vite's HMR.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    // updateViaCache:'none' makes the browser revalidate sw.js on every check rather
+    // than trusting the HTTP cache — the CDN puts a 7-day max-age on it, which would
+    // otherwise let a superseded worker keep serving an old cache after a deploy.
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
+  });
+}

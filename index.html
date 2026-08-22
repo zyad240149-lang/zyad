@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ميعاد</title>
+<meta name="description" content="احجز موعدك في العيادة في أقل من دقيقة، وتابع حجوزاتك وتذكيراتك في مكان واحد.">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0FA3A3">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ميعاد">
 <link rel="stylesheet" href="/_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/fonts.css">
 <link rel="stylesheet" href="/_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/colors.css">
 <link rel="stylesheet" href="/_ds/meaad-design-system-54b82ae0-23b3-4f03-a001-0d94ca67e9ba/tokens/typography.css">
@@ -13,6 +21,21 @@
 </head>
 <body>
 <div id="root"></div>
+<script>
+// Chrome fires beforeinstallprompt as soon as the page qualifies — often before the
+// React bundle has parsed, let alone mounted. Stash it here so InstallApp can pick it
+// up whenever it mounts, and re-broadcast so an already-mounted component reacts too.
+(function () {
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    window.__meaadInstallPrompt = e;
+    window.dispatchEvent(new CustomEvent('meaad:installable'));
+  });
+  window.addEventListener('appinstalled', function () {
+    window.__meaadInstallPrompt = null;
+  });
+})();
+</script>
 <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
 <script type="module" src="/src/main.jsx"></script>
 </body>

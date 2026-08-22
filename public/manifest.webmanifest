@@ -1,0 +1,33 @@
+{
+  "name": "ميعاد — حجز مواعيد العيادات",
+  "short_name": "ميعاد",
+  "description": "احجز موعدك في العيادة في أقل من دقيقة، وتابع حجوزاتك وتذكيراتك في مكان واحد.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0FA3A3",
+  "categories": ["medical", "health", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "احجز موعد",
+      "short_name": "حجز",
+      "url": "/book",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "مواعيدي",
+      "short_name": "مواعيدي",
+      "url": "/account",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
