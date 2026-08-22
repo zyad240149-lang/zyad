@@ -1,18 +1,24 @@
 // ميعاد — الملف الطبي للمريض.
 //
-// Everything about one patient on one screen: their details, a merged timeline, and
-// the full history of visits, prescriptions, labs and radiology. Opened from the
-// العملاء والمرضى table, and it reads whatever was recorded during a كشف — nothing
-// is entered twice.
+// Everything about one patient on one screen: their details, the standing medical
+// history, a merged timeline, and the full record of visits, prescriptions, labs,
+// radiology and files. Opened from سجل المرضى (or from العملاء), and it reads
+// whatever was recorded during a كشف — nothing is entered twice.
+//
+// Two permissions shape it: medical_records_view opens the file at all, while
+// medical_records_clinical decides whether anything clinical inside it is shown.
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth, toLocalPhone } from '../../lib/auth/AuthContext.jsx';
 import { formatArabicTime } from '../../lib/time.js';
 import {
-  getPatientRecord, buildTimeline, timelineMeta,
-  deleteVisit, deletePrescription, deleteLabRequest, deleteRadiology,
+  getPatientRecord, getPatientBasics, buildTimeline, timelineMeta,
+  deleteVisit, deletePrescription, deleteLabRequest, deleteRadiology, deletePatient,
+  attachmentCategoryMeta,
 } from '../../lib/api/medical.js';
 import VisitModal, { FileLink } from './VisitModal.jsx';
 import PatientEditModal from './PatientEditModal.jsx';
+import PatientAttachments from './PatientAttachments.jsx';
+import MedicalHistoryModal, { HISTORY_SECTIONS } from './MedicalHistoryModal.jsx';
 import {
   ds, font, Card2, Ring2, Btn, IconBtn, Loading, ErrorNote, EmptyState,
   ConfirmBox, ModalShell, fmtDate,
@@ -22,10 +28,12 @@ const { Icon, Avatar, Alert } = ds;
 
 const TABS = [
   ['timeline', 'الخط الزمني', 'list-tree'],
+  ['history', 'التاريخ الطبي', 'heart-pulse'],
   ['visits', 'الزيارات والكشوف', 'stethoscope'],
   ['prescriptions', 'الأدوية والروشتات', 'pill'],
   ['labs', 'التحاليل', 'flask-conical'],
   ['radiology', 'الأشعة', 'scan-line'],
+  ['attachments', 'المرفقات الطبية', 'paperclip'],
 ];
 
 function ageFrom(birthDate) {
@@ -83,6 +91,36 @@ function RecordCard({ icon, tone, title, meta, children, onDelete, canManage, de
   );
 }
 
+/** Chip row summarising what one visit produced: أدوية، تحاليل، أشعة، مرفقات. */
+function VisitOutputs({ prescriptions = [], labs = [], radiology = [], attachments = [] }) {
+  const drugs = prescriptions.flatMap(rx => rx.items.map(i => i.drug_name));
+  const chips = [
+    ...drugs.map(name => ({ key: `d${name}`, icon: 'pill', tone: 'var(--green-600)', label: name })),
+    ...labs.map(l => ({ key: `l${l.id}`, icon: 'flask-conical', tone: 'var(--blue-600)', label: l.test_name })),
+    ...radiology.map(r => ({ key: `r${r.id}`, icon: 'scan-line', tone: 'var(--amber-600)', label: r.exam_type })),
+  ];
+  if (!chips.length && !attachments.length) return null;
+
+  return (
+    <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
+      {chips.map(c => (
+        <span key={c.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700, color: c.tone, background: `color-mix(in srgb, ${c.tone} 11%, white)`, padding: '4px 10px', borderRadius: 999 }}>
+          <Icon name={c.icon} size={12} color={c.tone} />{c.label}
+        </span>
+      ))}
+      {attachments.map(a => {
+        const meta = attachmentCategoryMeta(a.category);
+        return (
+          <span key={a.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700, color: meta.tone, background: `color-mix(in srgb, ${meta.tone} 11%, white)`, padding: '4px 10px', borderRadius: 999 }}>
+            <Icon name={meta.icon} size={12} color={meta.tone} />
+            <FileLink path={a.storage_path} label={a.file_name} />
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function StatusChip({ status }) {
   const map = {
     requested: ['مطلوب', 'var(--amber-700)', 'var(--accent-subtle)'],
@@ -96,21 +134,28 @@ function StatusChip({ status }) {
 export default function PatientFile({ patientId, appointments = [], onBack, onChanged }) {
   const { can } = useAuth();
   const canManage = can('medical_records_manage');
+  // A role can be allowed to look someone up (reception) without being allowed to
+  // read what was diagnosed. RLS enforces it; this only decides what to render.
+  const canViewClinical = can('medical_records_clinical');
 
-  const [tab, setTab] = useState('timeline');
+  const [tab, setTab] = useState(canViewClinical ? 'timeline' : 'history');
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [visitModal, setVisitModal] = useState(null);   // { visitId } | { newVisit: true }
   const [openRx, setOpenRx] = useState(null);
   const [editingPatient, setEditingPatient] = useState(false);
+  const [editingHistory, setEditingHistory] = useState(false);
+  const [deletingPatient, setDeletingPatient] = useState(false);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const load = useCallback(() => {
     setError('');
-    return getPatientRecord(patientId)
+    return (canViewClinical ? getPatientRecord(patientId) : getPatientBasics(patientId))
       .then(setRecord)
       .catch(e => setError(e.message || 'تعذّر تحميل الملف الطبي.'));
-  }, [patientId]);
+  }, [patientId, canViewClinical]);
 
   useEffect(() => {
     setLoading(true);
@@ -121,9 +166,9 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
   if (error && !record) return <><ErrorNote>{error}</ErrorNote><Btn variant="ghost" icon="arrow-right" onClick={onBack}>رجوع</Btn></>;
   if (!record) return null;
 
-  const { patient, visits, prescriptions, labs, radiology } = record;
+  const { patient, history, visits, prescriptions, labs, radiology, attachments } = record;
   const age = ageFrom(patient.birth_date);
-  const timeline = buildTimeline({ visits, prescriptions, labs, radiology, appointments });
+  const timeline = buildTimeline({ visits, prescriptions, labs, radiology, attachments, appointments });
 
   const refresh = async () => { await load(); onChanged?.(); };
 
@@ -132,7 +177,11 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
     prescriptions: prescriptions.length,
     labs: labs.length,
     radiology: radiology.length,
+    attachments: attachments.length,
   };
+
+  const attachmentsForVisit = visitId => attachments.filter(a => a.visit_id === visitId);
+  const historyFilled = HISTORY_SECTIONS.filter(([key]) => history?.[key]);
 
   const doctorFor = visitId => visits.find(v => v.id === visitId);
 
@@ -143,6 +192,7 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
         <Btn variant="ghost" size="sm" icon="arrow-right" onClick={onBack}>رجوع للقائمة</Btn>
         <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {canManage && <Btn icon="pencil" variant="ghost" size="sm" onClick={() => setEditingPatient(true)}>تعديل البيانات</Btn>}
+          {canManage && <Btn icon="trash-2" variant="dangerGhost" size="sm" onClick={() => setDeletingPatient(true)}>حذف الملف</Btn>}
           {canManage && <Btn icon="plus" size="sm" onClick={() => setVisitModal({ newVisit: true })}>زيارة جديدة</Btn>}
         </div>
       </div>
@@ -155,6 +205,11 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: font, fontWeight: 900, fontSize: 21, color: 'var(--text-strong)' }}>{patient.name}</span>
+              {patient.file_number && (
+                <span dir="ltr" style={{ fontFamily: font, fontWeight: 800, fontSize: 12.5, color: 'var(--teal-700)', background: 'var(--brand-subtle)', border: '1px solid var(--brand-border)', padding: '3px 10px', borderRadius: 999 }}>
+                  {patient.file_number}
+                </span>
+              )}
               {!patient.hasAccount && (
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--amber-700)', background: 'var(--accent-subtle)', padding: '3px 10px', borderRadius: 999 }}>بدون حساب — مريض زائر</span>
               )}
@@ -167,8 +222,17 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
               <InfoLine icon="cake" label="العمر" value={age != null ? `${age} سنة` : patient.birth_date ? fmtDate(patient.birth_date) : '—'} />
               <InfoLine icon="user-round" label="النوع" value={patient.gender === 'male' ? 'ذكر' : patient.gender === 'female' ? 'أنثى' : '—'} />
               {patient.email && <InfoLine icon="mail" label="البريد" value={patient.email} />}
-              <InfoLine icon="calendar-days" label="مريض منذ" value={fmtDate(patient.joinedAt)} />
+              {patient.address && <InfoLine icon="map-pin" label="العنوان" value={patient.address} />}
+              <InfoLine icon="folder-plus" label="الملف منذ" value={fmtDate(patient.created_at)} />
             </div>
+            {/* Allergies are the one thing that must be visible without opening a
+                tab — everything else about the history lives in التاريخ الطبي. */}
+            {canViewClinical && history?.allergies && (
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 13px', borderRadius: 12, background: 'var(--red-50)', border: '1px solid var(--red-500)', fontSize: 13, color: 'var(--red-600)', lineHeight: 1.7 }}>
+                <Icon name="triangle-alert" size={16} color="var(--red-500)" />
+                <div><b style={{ fontFamily: font }}>حساسية:</b> {history.allergies}</div>
+              </div>
+            )}
             {patient.notes && (
               <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, background: 'var(--accent-subtle)', fontSize: 13, color: 'var(--amber-700)', lineHeight: 1.7 }}>
                 <b>ملاحظات:</b> {patient.notes}
@@ -177,12 +241,14 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
           </div>
         </div>
 
-        <div className="admin-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginTop: 18 }}>
+        {canViewClinical && (
+        <div className="admin-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginTop: 18 }}>
           {[
             ['الزيارات', counts.visits, 'stethoscope', 'var(--brand)'],
             ['الروشتات', counts.prescriptions, 'pill', 'var(--green-500)'],
             ['التحاليل', counts.labs, 'flask-conical', 'var(--blue-500)'],
             ['الأشعة', counts.radiology, 'scan-line', 'var(--amber-600)'],
+            ['المرفقات', counts.attachments, 'paperclip', 'var(--gray-600)'],
           ].map(([label, value, icon, tone]) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, background: 'var(--surface-page)', border: '1px solid var(--border-subtle)' }}>
               <Ring2 icon={icon} tone={tone} size={34} />
@@ -193,9 +259,21 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
             </div>
           ))}
         </div>
+        )}
       </Card2>
 
+      {!canViewClinical && (
+        <Card2>
+          <EmptyState
+            icon="lock"
+            title="البيانات الطبية غير متاحة لدورك الحالي"
+            sub="تظهر لك البيانات الأساسية للمريض فقط. التشخيصات والزيارات والأدوية والمرفقات تحتاج صلاحية «عرض التفاصيل الطبية» — يفعّلها مدير العيادة من تبويب الصلاحيات."
+          />
+        </Card2>
+      )}
+
       {/* ---- section tabs ---- */}
+      {canViewClinical && (
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
         {TABS.map(([id, label, icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 16px', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: font, fontWeight: 700, fontSize: 13.5, background: tab === id ? 'var(--brand)' : 'var(--white)', border: tab === id ? '1.5px solid var(--brand)' : '1.5px solid var(--border-subtle)', color: tab === id ? '#fff' : 'var(--text-body)' }}>
@@ -203,9 +281,72 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
           </button>
         ))}
       </div>
+      )}
+
+      {/* ---- التاريخ الطبي ---- */}
+      {canViewClinical && tab === 'history' && (
+        <Card2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div>
+              <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>التاريخ الطبي</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                {history?.updated_at
+                  ? `آخر تحديث ${fmtDate(history.updated_at)}${history.editorName ? ` · ${history.editorName}` : ''}`
+                  : 'بيانات ثابتة تظهر لأي طبيب يفتح الملف'}
+              </div>
+            </div>
+            {canManage && (
+              <div style={{ marginInlineStart: 'auto' }}>
+                <Btn icon={historyFilled.length || history?.blood_type ? 'pencil' : 'plus'} onClick={() => setEditingHistory(true)}>
+                  {historyFilled.length || history?.blood_type ? 'تعديل التاريخ الطبي' : 'تسجيل التاريخ الطبي'}
+                </Btn>
+              </div>
+            )}
+          </div>
+
+          {!history || (!historyFilled.length && !history.blood_type) ? (
+            <EmptyState
+              icon="heart-pulse"
+              title="لم يُسجَّل تاريخ طبي بعد"
+              sub="الحساسية، الأمراض السابقة، الأدوية الحالية، والعمليات — تُسجَّل مرة وتظهر في كل كشف."
+              action={canManage ? <Btn icon="plus" onClick={() => setEditingHistory(true)}>تسجيل التاريخ الطبي</Btn> : null}
+            />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+              {history.blood_type && (
+                <div style={{ padding: 14, borderRadius: 14, background: 'var(--surface-page)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 6 }}>
+                    <Icon name="droplet" size={14} color="var(--red-500)" />فصيلة الدم
+                  </div>
+                  <div dir="ltr" style={{ fontFamily: font, fontWeight: 900, fontSize: 20, color: 'var(--text-strong)', textAlign: 'start' }}>{history.blood_type}</div>
+                </div>
+              )}
+              {historyFilled.map(([key, label]) => (
+                <div key={key} style={{ padding: 14, borderRadius: 14, background: key === 'allergies' ? 'var(--red-50)' : 'var(--surface-page)', border: `1px solid ${key === 'allergies' ? 'var(--red-500)' : 'var(--border-subtle)'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: key === 'allergies' ? 'var(--red-600)' : 'var(--text-muted)', marginBottom: 6 }}>
+                    <Icon name={key === 'allergies' ? 'triangle-alert' : 'clipboard-list'} size={14} color={key === 'allergies' ? 'var(--red-500)' : 'var(--text-muted)'} />{label}
+                  </div>
+                  <div style={{ fontSize: 13.5, color: 'var(--text-body)', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{history[key]}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card2>
+      )}
+
+      {/* ---- المرفقات الطبية ---- */}
+      {canViewClinical && tab === 'attachments' && (
+        <PatientAttachments
+          patientId={patient.id}
+          attachments={attachments}
+          visits={visits}
+          canManage={canManage}
+          onChanged={refresh}
+        />
+      )}
 
       {/* ---- timeline ---- */}
-      {tab === 'timeline' && (
+      {canViewClinical && tab === 'timeline' && (
         timeline.length === 0
           ? <Card2><EmptyState icon="list-tree" title="لا يوجد تاريخ طبي بعد" sub="ابدأ بتسجيل زيارة — سيظهر كل ما يُسجَّل فيها هنا تلقائياً." action={canManage ? <Btn icon="plus" onClick={() => setVisitModal({ newVisit: true })}>زيارة جديدة</Btn> : null} /></Card2>
           : (
@@ -244,7 +385,7 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
       )}
 
       {/* ---- visits ---- */}
-      {tab === 'visits' && (
+      {canViewClinical && tab === 'visits' && (
         visits.length === 0
           ? <Card2><EmptyState icon="stethoscope" title="لا توجد زيارات مسجّلة" sub="كل كشف تفتحه من جدول المواعيد سيظهر هنا." action={canManage ? <Btn icon="plus" onClick={() => setVisitModal({ newVisit: true })}>زيارة جديدة</Btn> : null} /></Card2>
           : visits.map(v => (
@@ -259,18 +400,31 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
               extra={<Btn size="sm" variant="soft" icon="folder-open" onClick={() => setVisitModal({ visitId: v.id })}>فتح الكشف</Btn>}
               onDelete={() => deleteVisit(v.id).then(refresh).catch(e => setError(e.message))}
             >
-              {(v.diagnosis || v.notes) && (
+              {(v.symptoms || v.diagnosis || v.notes || v.follow_up) && (
                 <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 1.8 }}>
+                  {v.symptoms && <div><b style={{ fontFamily: font, color: 'var(--text-strong)' }}>الأعراض:</b> {v.symptoms}</div>}
                   {v.diagnosis && <div><b style={{ fontFamily: font, color: 'var(--text-strong)' }}>التشخيص:</b> {v.diagnosis}</div>}
                   {v.notes && <div><b style={{ fontFamily: font, color: 'var(--text-strong)' }}>ملاحظات الطبيب:</b> {v.notes}</div>}
+                  {v.follow_up && <div><b style={{ fontFamily: font, color: 'var(--text-strong)' }}>خطة المتابعة:</b> {v.follow_up}</div>}
                 </div>
               )}
+
+              {/* What this encounter produced — the drugs, orders and files that
+                  carry its visit_id, so the card answers "what happened that day"
+                  without opening the كشف. */}
+              <VisitOutputs
+                visit={v}
+                prescriptions={prescriptions.filter(rx => rx.visit_id === v.id)}
+                labs={labs.filter(l => l.visit_id === v.id)}
+                radiology={radiology.filter(r => r.visit_id === v.id)}
+                attachments={attachmentsForVisit(v.id)}
+              />
             </RecordCard>
           ))
       )}
 
       {/* ---- prescriptions ---- */}
-      {tab === 'prescriptions' && (
+      {canViewClinical && tab === 'prescriptions' && (
         prescriptions.length === 0
           ? <Card2><EmptyState icon="pill" title="لا توجد روشتات" sub="الأدوية التي توصف أثناء الكشف تظهر هنا." /></Card2>
           : prescriptions.map(rx => (
@@ -295,7 +449,7 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
       )}
 
       {/* ---- labs ---- */}
-      {tab === 'labs' && (
+      {canViewClinical && tab === 'labs' && (
         labs.length === 0
           ? <Card2><EmptyState icon="flask-conical" title="لا توجد تحاليل" sub="التحاليل المطلوبة أثناء الكشف تظهر هنا، الأحدث أولاً." /></Card2>
           : labs.map(l => (
@@ -321,7 +475,7 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
       )}
 
       {/* ---- radiology ---- */}
-      {tab === 'radiology' && (
+      {canViewClinical && tab === 'radiology' && (
         radiology.length === 0
           ? <Card2><EmptyState icon="scan-line" title="لا توجد أشعة" sub="الأشعة المسجّلة أثناء الكشف تظهر هنا، الأحدث أولاً." /></Card2>
           : radiology.map(r => (
@@ -360,6 +514,56 @@ export default function PatientFile({ patientId, appointments = [], onBack, onCh
           patient={patient}
           onClose={() => setEditingPatient(false)}
           onSaved={() => { setEditingPatient(false); refresh(); }}
+        />
+      )}
+
+      {deletingPatient && (
+        <ModalShell
+          title="حذف الملف الطبي"
+          sub={[patient.name, patient.file_number].filter(Boolean).join(' · ')}
+          onClose={() => { setDeletingPatient(false); setDeleteConfirmed(false); }}
+          width={480}
+        >
+          <div style={{ fontSize: 13.5, color: 'var(--text-body)', lineHeight: 1.9, marginBottom: 14 }}>
+            سيُحذف الملف نهائياً ومعه <b>كل الزيارات والروشتات والتحاليل والأشعة والمرفقات</b> ({counts.visits} زيارة · {counts.prescriptions} روشتة · {counts.attachments} مرفق).
+            <div style={{ marginTop: 8, color: 'var(--text-muted)' }}>
+              حساب العميل وحجوزاته ومدفوعاته لا تُحذف — تبقى كما هي في قسم العملاء.
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: 'var(--red-600)', cursor: 'pointer', marginBottom: 16 }}>
+            <input type="checkbox" checked={deleteConfirmed} onChange={e => setDeleteConfirmed(e.target.checked)} />
+            نعم، احذف الملف الطبي وكل محتوياته نهائياً
+          </label>
+          {deleteConfirmed && (
+            <ConfirmBox
+              message={`سيتم حذف الملف الطبي لـ${patient.name} نهائياً ولا يمكن التراجع. متأكد؟`}
+              confirmLabel="حذف نهائي"
+              busy={deleteBusy}
+              onCancel={() => { setDeletingPatient(false); setDeleteConfirmed(false); }}
+              onConfirm={async () => {
+                setDeleteBusy(true);
+                try {
+                  await deletePatient(patient.id);
+                  onChanged?.();
+                  onBack();
+                } catch (e) {
+                  setError(e.message || 'تعذّر حذف الملف الطبي.');
+                  setDeletingPatient(false);
+                } finally {
+                  setDeleteBusy(false);
+                }
+              }}
+            />
+          )}
+        </ModalShell>
+      )}
+
+      {editingHistory && (
+        <MedicalHistoryModal
+          patientId={patient.id}
+          history={history}
+          onClose={() => setEditingHistory(false)}
+          onSaved={() => { setEditingHistory(false); refresh(); }}
         />
       )}
 

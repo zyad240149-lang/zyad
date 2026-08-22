@@ -16,6 +16,7 @@ export default function PatientEditModal({ patient, onClose, onSaved }) {
   const [name, setName] = useState(patient?.name ?? '');
   const [phone, setPhone] = useState(toLocalPhone(patient?.phone) || '');
   const [email, setEmail] = useState(patient?.email ?? '');
+  const [address, setAddress] = useState(patient?.address ?? '');
   const [birthDate, setBirthDate] = useState(patient?.birth_date ?? '');
   const [gender, setGender] = useState(patient?.gender ?? '');
   const [notes, setNotes] = useState(patient?.notes ?? '');
@@ -42,6 +43,11 @@ export default function PatientEditModal({ patient, onClose, onSaved }) {
       const payload = {
         name: name.trim(),
         phone: phoneToStore,
+        // A linked account keeps its email on `profiles` (that row is the source of
+        // truth, and it's what mapPatient reads first) — writing it here too would
+        // give the same person two copies that can drift.
+        email: hasAccount ? undefined : (email.trim() || null),
+        address: address.trim() || null,
         birthDate: birthDate || null,
         gender: gender || null,
         notes: notes.trim(),
@@ -64,7 +70,10 @@ export default function PatientEditModal({ patient, onClose, onSaved }) {
   return (
     <ModalShell
       title={creating ? 'إضافة مريض' : 'تعديل بيانات المريض'}
-      sub={creating ? 'مريض زائر بدون حساب على التطبيق' : (hasAccount ? 'مرتبط بحساب على التطبيق — يُحدَّث الحساب أيضاً' : 'مريض زائر بدون حساب')}
+      sub={[
+        patient?.file_number ? `ملف رقم ${patient.file_number}` : null,
+        creating ? 'مريض زائر بدون حساب على التطبيق' : (hasAccount ? 'مرتبط بحساب على التطبيق — يُحدَّث الحساب أيضاً' : 'مريض زائر بدون حساب'),
+      ].filter(Boolean).join(' · ')}
       onClose={onClose}
       width={520}
     >
@@ -90,11 +99,16 @@ export default function PatientEditModal({ patient, onClose, onSaved }) {
           </div>
         </div>
 
+        <Field label="البريد الإلكتروني (اختياري)" hint={hasAccount ? 'بريد الحساب على التطبيق' : undefined}>
+          <Input iconStart="mail" value={email} onChange={e => setEmail(e.target.value)} dir="ltr" />
+        </Field>
+
+        <Field label="العنوان (اختياري)">
+          <Input iconStart="map-pin" value={address} onChange={e => setAddress(e.target.value)} placeholder="مثال: المعادي — شارع ٩" />
+        </Field>
+
         {hasAccount && (
           <>
-            <Field label="البريد الإلكتروني (اختياري)">
-              <Input iconStart="mail" value={email} onChange={e => setEmail(e.target.value)} />
-            </Field>
             <div>
               <div style={{ fontFamily: font, fontWeight: 700, fontSize: 13.5, color: 'var(--text-strong)', marginBottom: 9 }}>حالة الحساب</div>
               <div style={{ display: 'flex', gap: 9 }}>
@@ -106,8 +120,11 @@ export default function PatientEditModal({ patient, onClose, onSaved }) {
           </>
         )}
 
-        <Field label="ملاحظات طبية عامة (اختياري)" hint="مثال: حساسية من البنسلين">
-          <TextArea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
+        {/* Administrative note only. The clinical summary (الحساسية، الأمراض
+            السابقة…) lives in التاريخ الطبي inside the file, where the
+            medical_records_clinical permission gates it. */}
+        <Field label="ملاحظات عامة (اختياري)" hint="ملاحظة إدارية — التاريخ الطبي يُسجَّل داخل الملف الطبي">
+          <TextArea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="مثال: يفضّل مواعيد الصباح" />
         </Field>
       </div>
 

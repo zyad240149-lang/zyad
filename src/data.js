@@ -94,7 +94,8 @@ export const MeaadStory = {
     ['manage_payments', 'إدارة المدفوعات والاسترجاع'],
     ['inventory_view', 'عرض المخزون'],
     ['inventory_manage', 'إدارة المخزون (إضافة/خصم)'],
-    ['medical_records_view', 'عرض السجلات الطبية'],
+    ['medical_records_view', 'عرض سجل المرضى (البيانات الأساسية)'],
+    ['medical_records_clinical', 'عرض التفاصيل الطبية (تشخيص/زيارات/مرفقات)'],
     ['medical_records_manage', 'إدارة السجلات الطبية (كشف/روشتة/تحاليل)'],
   ],
 };

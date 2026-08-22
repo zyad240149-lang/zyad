@@ -20,12 +20,15 @@ import readline from 'node:readline';
 const PROJECT_REF = 'dcnveaunbehtsimewgoa';
 const API = `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`;
 
-const DEFAULT_MIGRATION = 'supabase/migrations/0004_inventory_and_medical_records.sql';
+// 0005 builds on 0004 — run 0004 first if this is a fresh project:
+//   node scripts/apply-migration.mjs supabase/migrations/0004_inventory_and_medical_records.sql
+const DEFAULT_MIGRATION = 'supabase/migrations/0005_inventory_expiry_and_patient_files.sql';
 
-// Tables 0004 is expected to create, used for the check at the end.
+// Tables 0004 + 0005 are expected to leave behind, used for the check at the end.
 const EXPECTED = [
   'patients', 'visits', 'prescriptions', 'prescription_items',
   'lab_requests', 'radiology_records', 'inventory_products', 'inventory_transactions',
+  'patient_medical_history', 'patient_attachments',
 ];
 
 /** Reads a secret from the terminal without echoing it. */

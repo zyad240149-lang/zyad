@@ -12,7 +12,8 @@ import {
   listPrescriptions, createPrescription, deletePrescription,
   listLabRequests, createLabRequest, updateLabRequest, deleteLabRequest,
   listRadiology, createRadiology, updateRadiology, deleteRadiology,
-  listVisitSupplies, uploadMedicalFile, getMedicalFileUrl,
+  listVisitSupplies, listAttachments, uploadAttachment, deleteAttachment, getMedicalFileUrl,
+  ATTACHMENT_CATEGORIES, attachmentCategoryMeta, fmtFileSize, MAX_FILE_BYTES,
 } from '../../lib/api/medical.js';
 import {
   ds, font, Btn, IconBtn, Loading, ModalShell, TextArea, DateInput,
@@ -38,43 +39,98 @@ function SubHead({ icon, children, sub, action }) {
   );
 }
 
-/** Attach an image/PDF to a lab or radiology record. */
-function FilePicker({ patientId, value, onChange, disabled }) {
+/**
+ * Attach one *or more* images/PDFs to a lab or radiology record.
+ *
+ * A single scan is rarely one file — an X-ray comes as several views, a lab result
+ * as a photo per page — so the picker takes a whole selection at a time and keeps
+ * appending to it. Each upload is registered in patient_attachments (classified, and
+ * tied to this visit), so every file shows up in the مرفقات section of the patient's
+ * file; the record's own `file_path` points at the first one, which is what the
+ * older single-file views (FileLink in PatientFile) still read.
+ */
+function FilePicker({ patientId, visitId, category, description, value, onChange, disabled }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Kept so "إزالة" can take the attachment rows (and the stored objects) back out
+  // again — otherwise files the user changed their mind about would linger.
+  const [attachments, setAttachments] = useState([]);
 
   const pick = async e => {
-    const file = e.target.files?.[0];
+    const files = [...(e.target.files ?? [])];
     e.target.value = '';
-    if (!file) return;
+    if (!files.length) return;
     setBusy(true);
     setError('');
-    try {
-      onChange(await uploadMedicalFile(patientId, file));
-    } catch (err) {
-      setError(err.message || 'تعذّر رفع الملف.');
-    } finally {
-      setBusy(false);
+    const done = [];
+    const failed = [];
+    // Sequential, not Promise.all: a partial failure must leave the files that did
+    // upload attached rather than losing the whole batch.
+    for (const file of files) {
+      try {
+        done.push(await uploadAttachment(patientId, file, { category, visitId, description }));
+      } catch (err) {
+        failed.push(`${file.name}: ${err.message || 'تعذّر الرفع'}`);
+      }
     }
+    if (done.length) {
+      const next = [...attachments, ...done];
+      setAttachments(next);
+      onChange(next[0].storage_path);
+    }
+    setError(failed.join(' · '));
+    setBusy(false);
   };
+
+  const removeOne = async a => {
+    const next = attachments.filter(x => x.id !== a.id);
+    setAttachments(next);
+    onChange(next.length ? next[0].storage_path : null);
+    await deleteAttachment(a).catch(() => {});
+  };
+
+  const clear = async () => {
+    const all = attachments;
+    setAttachments([]);
+    onChange(null);
+    await Promise.all(all.map(a => deleteAttachment(a).catch(() => {})));
+  };
+
+  const count = attachments.length;
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, border: '1.5px solid var(--border-default)', background: '#fff', cursor: disabled || busy ? 'not-allowed' : 'pointer', fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-body)', opacity: disabled || busy ? 0.5 : 1 }}>
           <Icon name="paperclip" size={14} />
-          {busy ? 'جارِ الرفع…' : value ? 'استبدال الملف' : 'إرفاق ملف / صورة'}
-          <input type="file" accept="image/*,application/pdf" onChange={pick} disabled={disabled || busy} style={{ display: 'none' }} />
+          {busy ? 'جارِ الرفع…' : count ? 'إضافة ملف آخر' : 'إرفاق صورة أو ملف (اختياري)'}
+          <input type="file" accept="image/*,application/pdf" multiple onChange={pick} disabled={disabled || busy} style={{ display: 'none' }} />
         </label>
-        {value && (
+        {count > 0 && (
           <>
             <span style={{ fontSize: 12, color: 'var(--green-600)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              <Icon name="check" size={13} color="var(--green-500)" />تم الإرفاق
+              <Icon name="check" size={13} color="var(--green-500)" />
+              {count === 1 ? 'ملف واحد' : `${count} ملفات`}
             </span>
-            <button onClick={() => onChange(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--red-500)', fontSize: 12, fontFamily: font, fontWeight: 700 }}>إزالة</button>
+            <button onClick={clear} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--red-500)', fontSize: 12, fontFamily: font, fontWeight: 700 }}>إزالة الكل</button>
           </>
         )}
       </div>
+
+      {count > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          {attachments.map(a => (
+            <span key={a.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: 220, fontSize: 11.5, fontWeight: 700, color: 'var(--teal-700)', background: 'var(--brand-subtle)', border: '1px solid var(--brand-border)', padding: '4px 6px 4px 10px', borderRadius: 999 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.file_name}</span>
+              <button onClick={() => removeOne(a)} title="إزالة هذا الملف" aria-label={`إزالة ${a.file_name}`}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--red-500)', display: 'inline-flex', padding: 0, flex: '0 0 auto' }}>
+                <Icon name="x" size={12} color="currentColor" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       {error && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--red-600)' }}>{error}</div>}
     </div>
   );
@@ -116,8 +172,10 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
   const [branchId, setBranchId] = useState(defaults?.branchId ?? '');
   const [visitDate, setVisitDate] = useState(defaults?.date ?? today());
   const [reason, setReason] = useState(defaults?.reason ?? '');
+  const [symptoms, setSymptoms] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const [notes, setNotes] = useState('');
+  const [followUp, setFollowUp] = useState('');
   const [savingVisit, setSavingVisit] = useState(false);
 
   // ----- sub-records -----
@@ -125,6 +183,9 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
   const [labs, setLabs] = useState([]);
   const [radiology, setRadiology] = useState([]);
   const [supplies, setSupplies] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [attachCategory, setAttachCategory] = useState('report');
+  const [attachBusy, setAttachBusy] = useState(false);
 
   const [drugs, setDrugs] = useState([{ ...EMPTY_DRUG }]);
   const [rxNotes, setRxNotes] = useState('');
@@ -144,14 +205,22 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
 
   // ----- load -----
   const loadSubRecords = useCallback(async (vid, pid) => {
-    const [rx, lb, rd, sp] = await Promise.all([
-      listPrescriptions(pid), listLabRequests(pid), listRadiology(pid), listVisitSupplies(vid),
+    const [rx, lb, rd, sp, att] = await Promise.all([
+      listPrescriptions(pid), listLabRequests(pid), listRadiology(pid),
+      listVisitSupplies(vid), listAttachments(pid),
     ]);
     setPrescriptions(rx.filter(r => r.visit_id === vid));
     setLabs(lb.filter(r => r.visit_id === vid));
     setRadiology(rd.filter(r => r.visit_id === vid));
     setSupplies(sp);
+    setAttachments(att.filter(r => r.visit_id === vid));
   }, []);
+
+  const reloadAttachments = useCallback(async () => {
+    if (!visit) return;
+    const all = await listAttachments(visit.patient_id);
+    setAttachments(all.filter(a => a.visit_id === visit.id));
+  }, [visit?.id, visit?.patient_id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,8 +245,10 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
           setBranchId(v.branch_id ?? '');
           setVisitDate(v.visit_date);
           setReason(v.reason ?? '');
+          setSymptoms(v.symptoms ?? '');
           setDiagnosis(v.diagnosis ?? '');
           setNotes(v.notes ?? '');
+          setFollowUp(v.follow_up ?? '');
           await loadSubRecords(v.id, v.patient_id);
         }
       } catch (e) {
@@ -207,7 +278,7 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
     setSavingVisit(true);
     setError('');
     try {
-      const payload = { doctorId, branchId, visitDate, reason, diagnosis, notes };
+      const payload = { doctorId, branchId, visitDate, reason, symptoms, diagnosis, notes, followUp };
       const saved = visit
         ? await updateVisit(visit.id, payload)
         : await createVisit({ patientId, ...payload });
@@ -245,13 +316,18 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
   };
 
   // ----- lab -----
+  // Either half is enough to save: a requested test that has no result yet, or a
+  // scan someone photographed before anyone typed its name. test_name is NOT NULL,
+  // so an unnamed upload is filed under a generic label the doctor can rename later.
+  const labCanSave = !!labForm.testName.trim() || !!labForm.filePath;
+
   const saveLab = async () => {
     setSavingLab(true);
     setError('');
     try {
       const created = await createLabRequest({
         patientId: visit.patient_id, visitId: visit.id, doctorId: doctorId || null,
-        testName: labForm.testName.trim(), status: labForm.status,
+        testName: labForm.testName.trim() || 'تحليل بدون اسم', status: labForm.status,
         result: labForm.result.trim(), notes: labForm.notes.trim(),
         filePath: labForm.filePath, requestedAt: visitDate,
         resultDate: labForm.status === 'completed' ? today() : null,
@@ -267,13 +343,15 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
   };
 
   // ----- radiology -----
+  const radCanSave = !!radForm.examType.trim() || !!radForm.filePath;
+
   const saveRad = async () => {
     setSavingRad(true);
     setError('');
     try {
       const created = await createRadiology({
         patientId: visit.patient_id, visitId: visit.id, doctorId: doctorId || null,
-        examType: radForm.examType.trim(), status: radForm.status,
+        examType: radForm.examType.trim() || 'أشعة بدون نوع', status: radForm.status,
         report: radForm.report.trim(), notes: radForm.notes.trim(),
         filePath: radForm.filePath, performedAt: visitDate,
       });
@@ -363,6 +441,11 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
             </Field>
           </div>
           <div style={{ marginTop: 14 }}>
+            <Field label="الأعراض">
+              <TextArea rows={2} value={symptoms} onChange={e => setSymptoms(e.target.value)} placeholder="ما يشكو منه المريض — مثال: ألم عند المضغ منذ 3 أيام" />
+            </Field>
+          </div>
+          <div style={{ marginTop: 14 }}>
             <Field label="التشخيص">
               <TextArea rows={2} value={diagnosis} onChange={e => setDiagnosis(e.target.value)} placeholder="مثال: التهاب لثة" />
             </Field>
@@ -373,6 +456,11 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
             </Field>
           </div>
           <div style={{ marginTop: 14 }}>
+            <Field label="خطة المتابعة">
+              <TextArea rows={2} value={followUp} onChange={e => setFollowUp(e.target.value)} placeholder="مثال: متابعة بعد أسبوع مع نتيجة التحليل" />
+            </Field>
+          </div>
+          <div style={{ marginTop: 14 }}>
             <Btn icon="save" disabled={savingVisit || !visitDate} onClick={saveVisit}>
               {savingVisit ? 'جارِ الحفظ…' : visit ? 'حفظ بيانات الزيارة' : 'إنشاء الزيارة'}
             </Btn>
@@ -380,7 +468,7 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
 
           {/* ---- الروشتة ---- */}
           <div style={SECTION}>
-            <SubHead icon="pill" sub="اكتب الأدوية ثم احفظ الروشتة كاملة">الروشتة</SubHead>
+            <SubHead icon="pill" sub="اسم الدواء والجرعة والملاحظات — كلها اختيارية عدا الاسم">الروشتة</SubHead>
             {locked ? lockHint : (
               <>
                 {prescriptions.length > 0 && (
@@ -438,7 +526,7 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
 
           {/* ---- التحاليل ---- */}
           <div style={SECTION}>
-            <SubHead icon="flask-conical" sub="اسم التحليل والنتيجة، مع إمكانية إرفاق ملف">التحاليل</SubHead>
+            <SubHead icon="flask-conical" sub="اسم التحليل والنتيجة — وارفع صورة أو أكثر لنتيجته (JPG/PNG/PDF)">التحاليل</SubHead>
             {locked ? lockHint : (
               <>
                 {labs.map(l => (
@@ -466,8 +554,18 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
                   <Field label="النتيجة / الملاحظات"><TextArea rows={2} value={labForm.result} onChange={e => setLabForm(f => ({ ...f, result: e.target.value }))} placeholder="اكتب النتيجة إن كانت متاحة" /></Field>
                 </div>
                 <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <FilePicker patientId={visit.patient_id} value={labForm.filePath} onChange={p => setLabForm(f => ({ ...f, filePath: p }))} />
-                  <Btn size="sm" icon="plus" disabled={!labForm.testName.trim() || savingLab} onClick={saveLab}>{savingLab ? 'جارِ الحفظ…' : 'إضافة تحليل'}</Btn>
+                  {/* Remounted after every save so the just-saved record's files stop
+                      showing as pending on the empty form. */}
+                  <FilePicker
+                    key={`lab-${labs.length}`}
+                    patientId={visit.patient_id}
+                    visitId={visit.id}
+                    category="lab"
+                    description={labForm.testName.trim() || undefined}
+                    value={labForm.filePath}
+                    onChange={p => setLabForm(f => ({ ...f, filePath: p }))}
+                  />
+                  <Btn size="sm" icon="plus" disabled={!labCanSave || savingLab} onClick={saveLab}>{savingLab ? 'جارِ الحفظ…' : 'إضافة تحليل'}</Btn>
                 </div>
               </>
             )}
@@ -475,7 +573,7 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
 
           {/* ---- الأشعة ---- */}
           <div style={SECTION}>
-            <SubHead icon="scan-line" sub="نوع الأشعة والتقرير، مع إمكانية إرفاق صورة أو PDF">الأشعة</SubHead>
+            <SubHead icon="scan-line" sub="نوع الأشعة والتقرير — وارفع صورة أو أكثر (JPG/PNG/PDF)">الأشعة</SubHead>
             {locked ? lockHint : (
               <>
                 {radiology.map(r => (
@@ -503,8 +601,94 @@ export default function VisitModal({ visitId: initialVisitId, appointmentId, pat
                   <Field label="التقرير / الملاحظات"><TextArea rows={2} value={radForm.report} onChange={e => setRadForm(f => ({ ...f, report: e.target.value }))} placeholder="اكتب التقرير إن كان متاحاً" /></Field>
                 </div>
                 <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <FilePicker patientId={visit.patient_id} value={radForm.filePath} onChange={p => setRadForm(f => ({ ...f, filePath: p }))} />
-                  <Btn size="sm" icon="plus" disabled={!radForm.examType.trim() || savingRad} onClick={saveRad}>{savingRad ? 'جارِ الحفظ…' : 'إضافة أشعة'}</Btn>
+                  <FilePicker
+                    key={`rad-${radiology.length}`}
+                    patientId={visit.patient_id}
+                    visitId={visit.id}
+                    category="radiology"
+                    description={radForm.examType.trim() || undefined}
+                    value={radForm.filePath}
+                    onChange={p => setRadForm(f => ({ ...f, filePath: p }))}
+                  />
+                  <Btn size="sm" icon="plus" disabled={!radCanSave || savingRad} onClick={saveRad}>{savingRad ? 'جارِ الحفظ…' : 'إضافة أشعة'}</Btn>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ---- المرفقات الطبية ---- */}
+          <div style={SECTION}>
+            <SubHead icon="paperclip" sub="صور التحاليل والأشعة والتقارير — تُربط بهذه الزيارة وتظهر في الملف الطبي">المرفقات الطبية</SubHead>
+            {locked ? lockHint : (
+              <>
+                {attachments.length > 0 && (
+                  <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {attachments.map(a => {
+                      const meta = attachmentCategoryMeta(a.category);
+                      return (
+                        <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', borderRadius: 12, background: 'var(--surface-page)', border: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+                          <Icon name={meta.icon} size={16} color={meta.tone} />
+                          <div style={{ flex: 1, minWidth: 140 }}>
+                            <div style={{ fontFamily: font, fontWeight: 700, fontSize: 13, color: 'var(--text-strong)', wordBreak: 'break-all' }}>{a.file_name}</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                              {[meta.label, fmtFileSize(a.file_size), a.uploaded_by_name].filter(Boolean).join(' · ')}
+                            </div>
+                          </div>
+                          <FileLink path={a.storage_path} label="فتح" />
+                          <IconBtn icon="trash-2" size={30} tone="var(--red-500)" title="حذف المرفق"
+                            onClick={async () => {
+                              try {
+                                await deleteAttachment(a);
+                                await reloadAttachments();
+                                markSaved('تم حذف المرفق.');
+                              } catch (e) { setError(e.message || 'تعذّر حذف المرفق.'); }
+                            }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 180 }}>
+                    <Field label="تصنيف الملف">
+                      <Select value={attachCategory} onChange={e => setAttachCategory(e.target.value)}>
+                        {ATTACHMENT_CATEGORIES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                      </Select>
+                    </Field>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 999, border: '1.5px solid var(--border-default)', background: '#fff', cursor: attachBusy ? 'not-allowed' : 'pointer', fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-body)', opacity: attachBusy ? 0.5 : 1 }}>
+                    <Icon name="upload" size={15} />
+                    {attachBusy ? 'جارِ الرفع…' : 'رفع ملف / صورة'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      multiple
+                      disabled={attachBusy}
+                      style={{ display: 'none' }}
+                      onChange={async e => {
+                        const files = [...(e.target.files ?? [])];
+                        e.target.value = '';
+                        if (!files.length) return;
+                        const tooBig = files.filter(f => f.size > MAX_FILE_BYTES);
+                        if (tooBig.length) setError(`تجاوز الحد الأقصى (10 ميجابايت): ${tooBig.map(f => f.name).join('، ')}`);
+                        const ok = files.filter(f => f.size <= MAX_FILE_BYTES);
+                        if (!ok.length) return;
+                        setAttachBusy(true);
+                        try {
+                          for (const file of ok) {
+                            await uploadAttachment(visit.patient_id, file, { category: attachCategory, visitId: visit.id });
+                          }
+                          await reloadAttachments();
+                          markSaved(ok.length === 1 ? 'تم رفع الملف.' : `تم رفع ${ok.length} ملفات.`);
+                        } catch (err) {
+                          setError(err.message || 'تعذّر رفع الملف.');
+                        } finally {
+                          setAttachBusy(false);
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
               </>
             )}

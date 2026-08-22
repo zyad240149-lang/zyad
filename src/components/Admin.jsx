@@ -105,7 +105,11 @@ const ADMIN_STYLE = `
 const NAV = [
   ['calendar-days', 'المواعيد', 'agenda'],
   ['calendar-clock', 'المواعيد المتاحة', 'availability'],
-  ['users', 'العملاء والمرضى', 'customers'],
+  ['users', 'العملاء', 'customers'],
+  // سجل المرضى is deliberately its own section, not a tab inside العملاء: the
+  // customer account (حجوزات، مدفوعات) and the medical file are separate records
+  // with separate permissions, and only the second one is gated here.
+  ['folder-heart', 'سجل المرضى', 'patients', 'medical_records_view'],
   ['package', 'المخزون', 'inventory', 'inventory_view'],
   ['wallet', 'الحسابات', 'accounting'],
   ['users-round', 'الموظفون', 'staff'],
@@ -166,8 +170,9 @@ function Rail({ tab, setTab, open, onClose }) {
 const TAB_META = {
   agenda: { title: 'مواعيد اليوم', sub: 'الثلاثاء · 12 أغسطس 2026 · فرع أكتوبر' },
   availability: { title: 'المواعيد المتاحة', sub: 'جدول كل طبيب، خدماته، وإعدادات الحجز' },
-  customers: { title: 'العملاء والمرضى', sub: 'بيانات كل مريض وملفه الطبي الكامل' },
-  inventory: { title: 'إدارة المخزون', sub: 'المنتجات، الكميات، وسجل الحركة' },
+  customers: { title: 'العملاء', sub: 'بيانات العملاء وحساباتهم وحجوزاتهم' },
+  patients: { title: 'سجل المرضى', sub: 'الملف الطبي لكل مريض — زيارات، أدوية، تحاليل، ومرفقات' },
+  inventory: { title: 'إدارة المخزون', sub: 'الأصناف، الكميات، الصلاحيات، وسجل الحركة' },
   accounting: { title: 'الحسابات', sub: 'الإيرادات والفواتير — 12 أغسطس' },
   staff: { title: 'الموظفون', sub: 'إدارة فريق العمل عبر كل الفروع' },
   permissions: { title: 'الصلاحيات', sub: 'تحديد ما يستطيع كل دور الوصول إليه' },
@@ -1858,7 +1863,12 @@ function AdminDashboard({ initialTab = 'agenda' }) {
             />
           )}
           {tab === 'availability' && <DoctorsTab />}
-          {tab === 'customers' && <PatientsTab appointments={appointments} onRefreshAppointments={refetchAppointments} />}
+          {/* Same table, two readings of it: the customers view answers "who books
+              and pays", the records view answers "who has a medical file". */}
+          {tab === 'customers' && <PatientsTab mode="customers" appointments={appointments} onRefreshAppointments={refetchAppointments} />}
+          {tab === 'patients' && (can('medical_records_view')
+            ? <PatientsTab mode="records" appointments={appointments} onRefreshAppointments={refetchAppointments} />
+            : <NoAccess />)}
           {tab === 'inventory' && (can('inventory_view')
             ? <InventoryTab branchId={selectedBranchId} />
             : <NoAccess />)}

@@ -7,13 +7,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../lib/auth/AuthContext.jsx';
 import { listBranches } from '../../lib/api/reference.js';
 import {
-  listProducts, inventorySummary, listLowStock, listCategories, listTransactions,
+  listProducts, inventorySummary, listLowStock, listExpiring, listCategories, listTransactions,
   addProduct, updateProduct, archiveProduct, restoreProduct, deleteProduct, recordMovement,
   UNITS, STATUS_LABEL, STATUS_TONE, MOVEMENT_LABEL,
+  EXPIRY_LABEL, EXPIRY_TONE, EXPIRY_SOON_DAYS, daysUntil,
 } from '../../lib/api/inventory.js';
 import {
   ds, font, Card2, Ring2, SectionTitle, Btn, IconBtn, Loading, ErrorNote, EmptyState,
-  ModalShell, ConfirmBox, Pager, SearchBox, FilterChips, TextArea, fmtQty, fmtDateTime,
+  ModalShell, ConfirmBox, Pager, SearchBox, FilterChips, TextArea, DateInput,
+  fmtQty, fmtDate, fmtDateTime,
 } from './ui.jsx';
 
 const { Icon, Field, Select, Input, Alert } = ds;
@@ -28,6 +30,13 @@ const STATUS_FILTERS = [
   ['ok', 'متوفر'],
 ];
 
+// Expiry is a second, independent axis: a product can be well-stocked *and* expired.
+const EXPIRY_FILTERS = [
+  ['all', 'كل الصلاحيات'],
+  ['soon', 'تقترب من الانتهاء'],
+  ['expired', 'منتهية الصلاحية'],
+];
+
 function StatusPillLocal({ status }) {
   const tone = STATUS_TONE[status] ?? STATUS_TONE.ok;
   return (
@@ -35,6 +44,26 @@ function StatusPillLocal({ status }) {
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: tone.color }} />
       {STATUS_LABEL[status] ?? '—'}
     </span>
+  );
+}
+
+/** The expiry cell: the date, plus a coloured pill once it needs attention. */
+function ExpiryCell({ product }) {
+  if (!product.expiry_date) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+  const state = product.expiryState;
+  const days = daysUntil(product.expiry_date);
+  const tone = EXPIRY_TONE[state] ?? EXPIRY_TONE.ok;
+  return (
+    <div style={{ whiteSpace: 'nowrap' }}>
+      <div style={{ color: 'var(--text-body)' }}>{fmtDate(product.expiry_date)}</div>
+      {state !== 'ok' && (
+        <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 700, color: tone.color, background: tone.bg, padding: '3px 9px', borderRadius: 999 }}>
+          {state === 'expired'
+            ? (days === 0 ? 'تنتهي اليوم' : `منتهية منذ ${Math.abs(days)} يوم`)
+            : `باقٍ ${days} يوم`}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -52,6 +81,9 @@ function ProductModal({ product, branches, categories, onClose, onSaved }) {
   const [quantity, setQuantity] = useState(editing ? String(product.quantity) : '');
   const [minQuantity, setMinQuantity] = useState(editing ? String(product.min_quantity) : '');
   const [branchId, setBranchId] = useState(product?.branch_id ?? '');
+  const [expiryDate, setExpiryDate] = useState(product?.expiry_date ?? '');
+  const [purchasePrice, setPurchasePrice] = useState(product?.purchase_price == null ? '' : String(product.purchase_price));
+  const [supplier, setSupplier] = useState(product?.supplier ?? '');
   const [notes, setNotes] = useState(product?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -68,6 +100,7 @@ function ProductModal({ product, branches, categories, onClose, onSaved }) {
           name: name.trim(), category: category.trim(), unit: resolvedUnit,
           minQuantity: minQuantity === '' ? 0 : Number(minQuantity),
           notes: notes.trim(), branchId: branchId || null,
+          expiryDate: expiryDate || null, purchasePrice, supplier: supplier.trim(),
         });
         onSaved(saved, 'تم حفظ تعديلات المنتج.');
       } else {
@@ -76,6 +109,7 @@ function ProductModal({ product, branches, categories, onClose, onSaved }) {
           quantity: quantity === '' ? 0 : Number(quantity),
           minQuantity: minQuantity === '' ? 0 : Number(minQuantity),
           notes: notes.trim(), branchId: branchId || null,
+          expiryDate: expiryDate || null, purchasePrice, supplier: supplier.trim(),
         });
         onSaved(saved, 'تمت إضافة المنتج.');
       }
@@ -133,6 +167,19 @@ function ProductModal({ product, branches, categories, onClose, onSaved }) {
             <Input type="number" min="0" step="1" iconStart="triangle-alert" value={minQuantity} onChange={e => setMinQuantity(e.target.value)} placeholder="0" />
           </Field>
         </div>
+
+        <div className="admin-pair" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <Field label="تاريخ الانتهاء (اختياري)" hint={`ينبّهك النظام قبلها بـ ${EXPIRY_SOON_DAYS} يوماً`}>
+            <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
+          </Field>
+          <Field label="سعر الشراء (اختياري)" hint="سعر الوحدة الواحدة بالجنيه">
+            <Input type="number" min="0" step="0.01" iconStart="wallet" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} placeholder="0.00" />
+          </Field>
+        </div>
+
+        <Field label="المورد (اختياري)">
+          <Input iconStart="truck" value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="مثال: شركة النيل للمستلزمات" />
+        </Field>
 
         <Field label="الفرع (اختياري)" hint="اتركه فارغاً إذا كان المنتج مشتركاً بين كل الفروع">
           <Select value={branchId} onChange={e => setBranchId(e.target.value)} placeholder="كل الفروع">
@@ -347,8 +394,9 @@ export default function InventoryTab({ branchId = null }) {
   const { can } = useAuth();
   const canManage = can('inventory_manage');
 
-  const [summary, setSummary] = useState({ total: 0, ok: 0, low: 0, out: 0 });
+  const [summary, setSummary] = useState({ total: 0, ok: 0, low: 0, out: 0, totalQuantity: 0, totalValue: 0, expiringSoon: 0, expired: 0 });
   const [lowStock, setLowStock] = useState([]);
+  const [expiring, setExpiring] = useState([]);
   const [recent, setRecent] = useState([]);
   const [products, setProducts] = useState({ rows: [], total: 0 });
   const [branches, setBranches] = useState([]);
@@ -360,6 +408,8 @@ export default function InventoryTab({ branchId = null }) {
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [expiryFilter, setExpiryFilter] = useState('all');
+  const [category, setCategory] = useState('');
   const [includeArchived, setIncludeArchived] = useState(false);
   const [page, setPage] = useState(0);
 
@@ -373,17 +423,19 @@ export default function InventoryTab({ branchId = null }) {
   const reloadOverview = useCallback(() => Promise.all([
     inventorySummary({ branchId }),
     listLowStock({ branchId }),
+    listExpiring({ branchId }),
     listTransactions({ page: 0, pageSize: 6 }),
     listCategories(),
-  ]).then(([s, low, tx, cats]) => {
+  ]).then(([s, low, exp, tx, cats]) => {
     setSummary(s);
     setLowStock(low);
+    setExpiring(exp);
     setRecent(tx.rows);
     setCategories(cats);
   }), [branchId]);
 
-  const reloadProducts = useCallback(() => listProducts({ search, status, branchId, includeArchived, page, pageSize: PAGE_SIZE })
-    .then(setProducts), [search, status, branchId, includeArchived, page]);
+  const reloadProducts = useCallback(() => listProducts({ search, status, expiry: expiryFilter, category, branchId, includeArchived, page, pageSize: PAGE_SIZE })
+    .then(setProducts), [search, status, expiryFilter, category, branchId, includeArchived, page]);
 
   // Full refresh after any write, so the tiles and the ⚠️ alerts track the table.
   const refreshAll = useCallback(() => {
@@ -396,7 +448,7 @@ export default function InventoryTab({ branchId = null }) {
     listBranches().then(setBranches).catch(() => {});
   }, []);
 
-  useEffect(() => { setPage(0); }, [search, status, includeArchived, branchId]);
+  useEffect(() => { setPage(0); }, [search, status, expiryFilter, category, includeArchived, branchId]);
 
   useEffect(() => {
     setLoading(true);
@@ -429,11 +481,29 @@ export default function InventoryTab({ branchId = null }) {
     }
   };
 
+  // Whether the empty state is "nothing here yet" or "nothing matches" — it changes
+  // both the wording and whether we offer the add button.
+  const filtered = !!search || status !== 'all' || expiryFilter !== 'all' || !!category;
+
   const tiles = [
-    { label: 'إجمالي المنتجات', value: summary.total, icon: 'package', tone: 'var(--brand)' },
-    { label: 'متوفرة', value: summary.ok, icon: 'check-circle', tone: 'var(--green-500)' },
-    { label: 'اقتربت من النفاد', value: summary.low, icon: 'triangle-alert', tone: 'var(--amber-600)' },
-    { label: 'نافدة', value: summary.out, icon: 'circle-x', tone: 'var(--red-500)' },
+    {
+      label: 'إجمالي الأصناف', value: summary.total, icon: 'package', tone: 'var(--brand)',
+      // إجمالي الكميات is a different question from إجمالي الأصناف: 12 أصناف can be
+      // 400 وحدة on the shelf. Both belong on the tile.
+      sub: `${fmtQty(summary.totalQuantity)} وحدة في المخزون`,
+    },
+    {
+      label: 'متوفرة', value: summary.ok, icon: 'check-circle', tone: 'var(--green-500)',
+      sub: summary.totalValue > 0 ? `قيمة المخزون ${fmtQty(summary.totalValue)} ج.م` : null,
+    },
+    {
+      label: 'اقتربت من النفاد', value: summary.low, icon: 'triangle-alert', tone: 'var(--amber-600)',
+      sub: summary.out > 0 ? `و${summary.out} نافدة تماماً` : null,
+    },
+    {
+      label: 'مشاكل صلاحية', value: summary.expired + summary.expiringSoon, icon: 'calendar-x', tone: 'var(--red-500)',
+      sub: `${summary.expired} منتهية · ${summary.expiringSoon} تقترب`,
+    },
   ];
 
   return (
@@ -448,6 +518,7 @@ export default function InventoryTab({ branchId = null }) {
             <Ring2 icon={t.icon} tone={t.tone} size={42} />
             <div style={{ fontFamily: font, fontWeight: 900, fontSize: 30, color: 'var(--text-strong)', marginTop: 12 }}>{t.value}</div>
             <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 1 }}>{t.label}</div>
+            {t.sub && <div style={{ color: 'var(--text-muted)', fontSize: 11.5, marginTop: 4 }}>{t.sub}</div>}
           </Card2>
         ))}
       </div>
@@ -491,6 +562,43 @@ export default function InventoryTab({ branchId = null }) {
         </Card2>
 
         <Card2>
+          <SectionTitle sub={`الأصناف المنتهية أو التي تنتهي خلال ${EXPIRY_SOON_DAYS} يوماً`}>تنبيهات الصلاحية</SectionTitle>
+          {expiring.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', color: 'var(--green-600)', fontSize: 13.5 }}>
+              <Icon name="check-circle" size={18} color="var(--green-500)" />لا يوجد صنف قارب على انتهاء صلاحيته.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {expiring.slice(0, 6).map(p => {
+                const gone = p.expiryState === 'expired';
+                const days = daysUntil(p.expiry_date);
+                return (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', borderRadius: 14, background: gone ? 'var(--red-50)' : 'var(--accent-subtle)', border: `1px solid ${gone ? 'var(--red-500)' : 'var(--amber-500)'}` }}>
+                    <span style={{ fontSize: 16 }}>{gone ? '⛔' : '⏳'}</span>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.7, color: gone ? 'var(--red-600)' : 'var(--amber-700)' }}>
+                      <b style={{ fontFamily: font }}>{p.name}</b>{' — '}
+                      {gone
+                        ? `انتهت صلاحيته في ${fmtDate(p.expiry_date)}${p.quantity > 0 ? ` ولا يزال ${fmtQty(p.quantity)} ${p.unit} على الرف.` : '.'}`
+                        : `تنتهي صلاحيته بعد ${days} يوم (${fmtDate(p.expiry_date)}).`}
+                    </div>
+                    {canManage && gone && p.quantity > 0 && (
+                      <Btn size="sm" variant="ghost" icon="minus" onClick={() => setMoving({ product: p, mode: 'use' })}>إعدام</Btn>
+                    )}
+                  </div>
+                );
+              })}
+              {expiring.length > 6 && (
+                <button onClick={() => { setExpiryFilter('soon'); setStatus('all'); setSearch(''); }} style={{ border: 'none', background: 'none', cursor: 'pointer', fontFamily: font, fontWeight: 700, fontSize: 13, color: 'var(--brand)', textAlign: 'start', padding: '4px 0' }}>
+                  عرض كل الـ {expiring.length} تنبيهاً ←
+                </button>
+              )}
+            </div>
+          )}
+        </Card2>
+      </div>
+
+      <div className="admin-split" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20, alignItems: 'start' }}>
+        <Card2>
           <SectionTitle sub="أحدث الإضافات والخصومات">آخر حركات المخزون</SectionTitle>
           {recent.length === 0
             ? <EmptyState icon="history" title="لا توجد حركات بعد" sub="ستظهر هنا كل عملية إضافة أو خصم فور تسجيلها." />
@@ -505,9 +613,17 @@ export default function InventoryTab({ branchId = null }) {
             <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>المنتجات</div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{products.total} منتج{includeArchived ? ' (شاملاً المؤرشف)' : ''}</div>
           </div>
-          <FilterChips options={STATUS_FILTERS} value={status} onChange={setStatus} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <FilterChips options={STATUS_FILTERS} value={status} onChange={setStatus} />
+            <FilterChips options={EXPIRY_FILTERS} value={expiryFilter} onChange={setExpiryFilter} />
+          </div>
           <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <SearchBox value={search} onChange={setSearch} placeholder="بحث بالاسم أو التصنيف…" />
+            {categories.length > 0 && (
+              <Select value={category} onChange={e => setCategory(e.target.value)} placeholder="كل التصنيفات" style={{ width: 180 }}>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </Select>
+            )}
+            <SearchBox value={search} onChange={setSearch} placeholder="بحث بالاسم أو التصنيف أو المورد…" width={260} />
             {canManage && <Btn icon="plus" onClick={() => setEditing('new')}>إضافة منتج</Btn>}
           </div>
         </div>
@@ -516,18 +632,18 @@ export default function InventoryTab({ branchId = null }) {
         {!loading && products.rows.length === 0 && (
           <EmptyState
             icon="package"
-            title={search || status !== 'all' ? 'لا توجد نتائج مطابقة' : 'لا توجد منتجات بعد'}
-            sub={search || status !== 'all' ? 'جرّب تغيير البحث أو الفلتر.' : 'ابدأ بإضافة أول منتج إلى مخزون العيادة.'}
-            action={canManage && !search && status === 'all' ? <Btn icon="plus" onClick={() => setEditing('new')}>إضافة منتج</Btn> : null}
+            title={filtered ? 'لا توجد نتائج مطابقة' : 'لا توجد منتجات بعد'}
+            sub={filtered ? 'جرّب تغيير البحث أو الفلتر.' : 'ابدأ بإضافة أول منتج إلى مخزون العيادة.'}
+            action={canManage && !filtered ? <Btn icon="plus" onClick={() => setEditing('new')}>إضافة منتج</Btn> : null}
           />
         )}
 
         {!loading && products.rows.length > 0 && (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, minWidth: 900 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, minWidth: 1180 }}>
               <thead>
                 <tr style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                  {['المنتج', 'التصنيف', 'الكمية الحالية', 'الوحدة', 'الحد الأدنى', 'الحالة', 'آخر تحديث', ''].map(h => (
+                  {['المنتج', 'التصنيف', 'الكمية الحالية', 'الوحدة', 'الحد الأدنى', 'الحالة', 'تاريخ الانتهاء', 'سعر الشراء', 'المورد', 'تاريخ الإضافة', ''].map(h => (
                     <th key={h} style={{ textAlign: 'start', fontWeight: 600, padding: '10px 22px', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -553,7 +669,12 @@ export default function InventoryTab({ branchId = null }) {
                     <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-body)' }}>{p.unit}</td>
                     <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-body)' }}>{fmtQty(p.min_quantity)}</td>
                     <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)' }}><StatusPillLocal status={p.status} /></td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: 12.5, whiteSpace: 'nowrap' }}>{fmtDateTime(p.updated_at)}</td>
+                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', fontSize: 12.5 }}><ExpiryCell product={p} /></td>
+                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-body)', whiteSpace: 'nowrap' }}>
+                      {p.purchase_price == null ? '—' : `${fmtQty(p.purchase_price)} ج.م`}
+                    </td>
+                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-body)' }}>{p.supplier || '—'}</td>
+                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: 12.5, whiteSpace: 'nowrap' }} title={`آخر تحديث: ${fmtDateTime(p.updated_at)}`}>{fmtDate(p.created_at)}</td>
                     <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)' }}>
                       <div style={{ display: 'flex', gap: 7 }}>
                         {canManage && p.active && <>
