@@ -4,3 +4,6 @@ dist/
 
 # Supabase CLI local state (project ref / cached version) — machine-specific.
 supabase/.temp/
+
+# Deploy bundle produced from dist/ — rebuild it, do not track it.
+/meaad-hostinger.zip
