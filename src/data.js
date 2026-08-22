@@ -48,23 +48,6 @@ export const MeaadStory = {
     { id: 5, time: '6:00 م', customer: 'ليلى فؤاد', service: 'استشارة', doctor: 'الدكتورة منى خالد', phone: '0122 777 3344', status: 'confirmed' },
     { id: 6, time: '6:30 م', customer: 'نورهان سعيد', service: 'أشعة', doctor: 'الدكتور أحمد سمير', phone: '0155 432 1098', status: 'cancelled' },
   ],
-  reminders: [
-    { id: 'r1', title: 'التذكير الأول', timing: 'قبل 24 ساعة من الموعد', on: true },
-    { id: 'r2', title: 'التذكير الثاني', timing: 'قبل ساعة واحدة من الموعد', on: false },
-  ],
-  channels: [
-    { id: 'wa', label: 'WhatsApp', icon: 'message-circle', on: true, color: 'var(--whatsapp)' },
-    { id: 'sms', label: 'SMS', icon: 'message-square', on: true, color: 'var(--blue-500)' },
-    { id: 'email', label: 'Email', icon: 'mail', on: false, color: 'var(--gray-500)' },
-  ],
-  // notification lifecycle board
-  notifications: [
-    { id: 'n1', customer: 'سارة عبدالله', channel: 'WhatsApp', kind: 'تأكيد الحجز', time: 'الآن', status: 'delivered' },
-    { id: 'n2', customer: 'خالد منير', channel: 'WhatsApp', kind: 'تذكير 24 ساعة', time: '9:00 صباحًا', status: 'delivered' },
-    { id: 'n3', customer: 'داليا رأفت', channel: 'SMS', kind: 'تذكير 24 ساعة', time: '9:00 صباحًا', status: 'sent' },
-    { id: 'n4', customer: 'محمد عادل', channel: 'WhatsApp', kind: 'تذكير ساعة', time: '4:30 مساءً', status: 'scheduled' },
-    { id: 'n5', customer: 'ليلى فؤاد', channel: 'SMS', kind: 'تذكير 24 ساعة', time: '9:00 صباحًا', status: 'failed' },
-  ],
   roster: [
     { name: 'الدكتور أحمد سمير', spec: 'أسنان', branch: 'فرع أكتوبر', rating: '4.9', patients: 312, days: 'السبت – الأربعاء', hours: '4 – 10 م', active: true, today: 8 },
     { name: 'الدكتورة منى خالد', spec: 'جلدية', branch: 'فرع المعادي', rating: '4.8', patients: 208, days: 'الأحد – الخميس', hours: '11 ص – 5 م', active: true, today: 5 },
@@ -94,12 +77,12 @@ export const MeaadStory = {
     { id: 's4', name: 'هبة سامي', role: 'موظف استقبال', branch: 'فرع مدينة نصر', email: 'heba@meaad.sa', phone: '0155 334 2210', status: 'suspended' },
   ],
   roles: [
-    { id: 'owner', name: 'مدير العيادة', color: 'var(--teal-700)', permissions: { view_bookings: 'full', manage_bookings: 'full', manage_availability: 'full', leads_access: 'full', manage_services_pricing: 'full', reports_analytics: 'full', manage_payments: 'full' } },
-    { id: 'admin', name: 'أدمن', color: 'var(--blue-600)', permissions: { view_bookings: 'full', manage_bookings: 'full', manage_availability: 'full', leads_access: 'full', manage_services_pricing: 'full', reports_analytics: 'full', manage_payments: 'none' } },
-    { id: 'reception', name: 'موظف استقبال', color: 'var(--blue-500)', permissions: { view_bookings: 'full', manage_bookings: 'full', manage_availability: 'none', leads_access: 'full', manage_services_pricing: 'none', reports_analytics: 'none', manage_payments: 'none' } },
-    { id: 'viewer', name: 'مشاهد', color: 'var(--gray-500)', permissions: { view_bookings: 'full', manage_bookings: 'none', manage_availability: 'none', leads_access: 'none', manage_services_pricing: 'none', reports_analytics: 'none', manage_payments: 'none' } },
-    { id: 'accountant', name: 'محاسب', color: 'var(--amber-600)', permissions: { view_bookings: 'full', manage_bookings: 'none', manage_availability: 'none', leads_access: 'none', manage_services_pricing: 'none', reports_analytics: 'full', manage_payments: 'full' } },
-    { id: 'doctor', name: 'طبيب', color: 'var(--green-600)', permissions: { view_bookings: 'full', manage_bookings: 'none', manage_availability: 'none', leads_access: 'none', manage_services_pricing: 'none', reports_analytics: 'none', manage_payments: 'none' } },
+    { id: 'owner', name: 'مدير العيادة', color: 'var(--teal-700)', permissions: { view_bookings: 'full', manage_bookings: 'full', manage_availability: 'full', leads_access: 'full', manage_services_pricing: 'full', reports_analytics: 'full', manage_payments: 'full', inventory_view: 'full', inventory_manage: 'full', medical_records_view: 'full', medical_records_manage: 'full' } },
+    { id: 'admin', name: 'أدمن', color: 'var(--blue-600)', permissions: { view_bookings: 'full', manage_bookings: 'full', manage_availability: 'full', leads_access: 'full', manage_services_pricing: 'full', reports_analytics: 'full', manage_payments: 'none', inventory_view: 'full', inventory_manage: 'full', medical_records_view: 'full', medical_records_manage: 'full' } },
+    { id: 'reception', name: 'موظف استقبال', color: 'var(--blue-500)', permissions: { view_bookings: 'full', manage_bookings: 'full', manage_availability: 'none', leads_access: 'full', manage_services_pricing: 'none', reports_analytics: 'none', manage_payments: 'none', inventory_view: 'full', inventory_manage: 'full', medical_records_view: 'full', medical_records_manage: 'none' } },
+    { id: 'viewer', name: 'مشاهد', color: 'var(--gray-500)', permissions: { view_bookings: 'full', manage_bookings: 'none', manage_availability: 'none', leads_access: 'none', manage_services_pricing: 'none', reports_analytics: 'none', manage_payments: 'none', inventory_view: 'full', inventory_manage: 'none', medical_records_view: 'none', medical_records_manage: 'none' } },
+    { id: 'accountant', name: 'محاسب', color: 'var(--amber-600)', permissions: { view_bookings: 'full', manage_bookings: 'none', manage_availability: 'none', leads_access: 'none', manage_services_pricing: 'none', reports_analytics: 'full', manage_payments: 'full', inventory_view: 'full', inventory_manage: 'none', medical_records_view: 'none', medical_records_manage: 'none' } },
+    { id: 'doctor', name: 'طبيب', color: 'var(--green-600)', permissions: { view_bookings: 'full', manage_bookings: 'none', manage_availability: 'none', leads_access: 'none', manage_services_pricing: 'none', reports_analytics: 'none', manage_payments: 'none', inventory_view: 'full', inventory_manage: 'full', medical_records_view: 'full', medical_records_manage: 'full' } },
   ],
   permissionModules: [
     ['view_bookings', 'عرض الحجوزات'],
@@ -109,5 +92,9 @@ export const MeaadStory = {
     ['manage_services_pricing', 'إدارة الخدمات والأسعار'],
     ['reports_analytics', 'التقارير والتحليلات'],
     ['manage_payments', 'إدارة المدفوعات والاسترجاع'],
+    ['inventory_view', 'عرض المخزون'],
+    ['inventory_manage', 'إدارة المخزون (إضافة/خصم)'],
+    ['medical_records_view', 'عرض السجلات الطبية'],
+    ['medical_records_manage', 'إدارة السجلات الطبية (كشف/روشتة/تحاليل)'],
   ],
 };

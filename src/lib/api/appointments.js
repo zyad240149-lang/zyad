@@ -18,6 +18,7 @@ function mapRow(row) {
     customer: row.customer?.name ?? row.customer_name ?? 'عميل',
     phone: row.customer?.phone ?? row.customer_phone ?? '',
     isGuest: !row.customer,
+    patientId: row.patient_id ?? null,
     branchId: row.branch_id ?? null,
     branch: row.branch?.name ?? null,
     serviceId: row.service_id ?? null,
@@ -32,7 +33,7 @@ function mapRow(row) {
 const SELECT = `
   id, appointment_date, appointment_time, status, notes, price,
   customer_name, customer_phone, service_name,
-  branch_id, service_id, doctor_id,
+  branch_id, service_id, doctor_id, patient_id,
   customer:profiles!appointments_customer_id_fkey ( id, name, phone ),
   branch:branches ( name ),
   service:services ( name ),

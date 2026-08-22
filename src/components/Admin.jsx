@@ -2,17 +2,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MeaadStory as AS } from '../data.js';
-import { useAuth, toLocalPhone, toStoredPhone } from '../lib/auth/AuthContext.jsx';
+import { useAuth, toLocalPhone } from '../lib/auth/AuthContext.jsx';
 import { listAllAppointments, updateAppointmentStatus, updateAppointment, createAppointment, deleteAppointment, isSlotTaken, listTakenTimes } from '../lib/api/appointments.js';
 import { listRolesWithPermissions, setRolePermission, listStaff, addPermissionModule, deletePermissionModule, addRole, deleteRole } from '../lib/api/staff.js';
-import { listBranches, listDoctors, listCustomers, listCustomersDetailed, updateCustomer, addBranch, addService, updateService } from '../lib/api/reference.js';
+import { listBranches, listDoctors, listCustomers, addBranch, addService, updateService } from '../lib/api/reference.js';
 import { getDoctorSchedule, setDayActive, addSchedulePeriod, deleteSchedulePeriod, listDoctorServices, setDoctorService, updateDoctorSettings, getBranchSchedule, setBranchDayActive, addBranchSchedulePeriod, deleteBranchSchedulePeriod } from '../lib/api/availability.js';
 import { formatArabicTime } from '../lib/time.js';
+// Shared primitives (Ring2/Toggle/Card2/SectionTitle) used to live here; they moved
+// to admin/ui.jsx so the newer sections are built from the same pieces.
+import { Ring2, Toggle, Card2, SectionTitle, font, body } from './admin/ui.jsx';
+import InventoryTab from './admin/InventoryTab.jsx';
+import PatientsTab from './admin/PatientsTab.jsx';
+import VisitModal from './admin/VisitModal.jsx';
 
 const { Icon, Avatar, StatusPill, Field, Select, Alert, Input } = window.MeaadDesignSystem_54b82a;
-
-const font = 'var(--font-display)';
-const body = 'var(--font-body)';
 
 // Mobile shell (<768px): the fixed-width rail becomes an off-canvas drawer so the
 // content can use the full viewport. Desktop keeps the original side-by-side layout —
@@ -96,42 +99,20 @@ const ADMIN_STYLE = `
   }
 `;
 
-// ---------- small primitives ----------
-function Ring2({ icon, tone = 'var(--brand)', size = 44 }) {
-  return <div style={{ width: size, height: size, borderRadius: 14, flex: '0 0 auto', background: `color-mix(in srgb, ${tone} 14%, white)`, color: tone, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={size * 0.5} /></div>;
-}
-
-function Toggle({ on, onClick }) {
-  return (
-    <button onClick={onClick} style={{ width: 46, height: 27, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 3, background: on ? 'var(--brand)' : 'var(--gray-300)', display: 'flex', justifyContent: on ? 'flex-start' : 'flex-end', transition: 'all .18s' }}>
-      <span style={{ width: 21, height: 21, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
-    </button>
-  );
-}
-
-function Card2({ children, style, pad = 22 }) {
-  return <div style={{ background: 'var(--white)', borderRadius: 20, border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)', padding: pad, ...style }}>{children}</div>;
-}
-
-function SectionTitle({ children, sub }) {
-  return <div style={{ marginBottom: 14 }}>
-    <div style={{ fontFamily: font, fontWeight: 800, fontSize: 18, color: 'var(--text-strong)' }}>{children}</div>
-    {sub && <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>{sub}</div>}
-  </div>;
-}
-
 // ---------- sidebar rail ----------
+// Fourth entry is the permission module that gates the section; the pre-existing
+// sections have none, so they keep behaving exactly as before.
 const NAV = [
   ['calendar-days', 'المواعيد', 'agenda'],
   ['calendar-clock', 'المواعيد المتاحة', 'availability'],
-  ['users', 'العملاء', 'customers'],
-  ['bell', 'التذكيرات', 'reminders'],
+  ['users', 'العملاء والمرضى', 'customers'],
+  ['package', 'المخزون', 'inventory', 'inventory_view'],
   ['wallet', 'الحسابات', 'accounting'],
   ['users-round', 'الموظفون', 'staff'],
   ['shield-check', 'الصلاحيات', 'permissions'],
 ];
 function Rail({ tab, setTab, open, onClose }) {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, can } = useAuth();
   const navigate = useNavigate();
   const initial = (profile?.name || 'م').trim()[0];
   const handleLogout = async () => {
@@ -158,7 +139,7 @@ function Rail({ tab, setTab, open, onClose }) {
         </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {NAV.map(([ic, lb, id]) => {
+        {NAV.filter(([, , , module]) => !module || can(module)).map(([ic, lb, id]) => {
           const on = tab === id;
           return (
             <button key={id} onClick={() => pick(id)} aria-current={on ? 'page' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 13, cursor: 'pointer', border: 'none', textAlign: 'start', fontFamily: font, fontWeight: 700, fontSize: 14.5, transition: 'all .15s', background: on ? 'rgba(255,255,255,.14)' : 'transparent', color: on ? '#fff' : 'rgba(255,255,255,.62)' }}>
@@ -185,8 +166,8 @@ function Rail({ tab, setTab, open, onClose }) {
 const TAB_META = {
   agenda: { title: 'مواعيد اليوم', sub: 'الثلاثاء · 12 أغسطس 2026 · فرع أكتوبر' },
   availability: { title: 'المواعيد المتاحة', sub: 'جدول كل طبيب، خدماته، وإعدادات الحجز' },
-  customers: { title: 'العملاء', sub: 'كل العملاء المسجّلين وتفاصيلهم' },
-  reminders: { title: 'التذكيرات والإشعارات', sub: 'إعداد قنوات الإرسال ومتابعة حالة كل إشعار' },
+  customers: { title: 'العملاء والمرضى', sub: 'بيانات كل مريض وملفه الطبي الكامل' },
+  inventory: { title: 'إدارة المخزون', sub: 'المنتجات، الكميات، وسجل الحركة' },
   accounting: { title: 'الحسابات', sub: 'الإيرادات والفواتير — 12 أغسطس' },
   staff: { title: 'الموظفون', sub: 'إدارة فريق العمل عبر كل الفروع' },
   permissions: { title: 'الصلاحيات', sub: 'تحديد ما يستطيع كل دور الوصول إليه' },
@@ -367,7 +348,7 @@ function CountdownBadge({ date, time, status }) {
 }
 
 // ---------- Agenda timeline ----------
-function AgendaTab({ appointments, loading, error, onEdit }) {
+function AgendaTab({ appointments, loading, error, onEdit, onOpenVisit }) {
   const [filter, setFilter] = useState('all');
   const FILTERS = [['all', 'الكل'], ['confirmed', 'مؤكد'], ['pending', 'قيد الانتظار']];
   const list = filter === 'all' ? appointments : appointments.filter(a => a.status === filter);
@@ -390,7 +371,7 @@ function AgendaTab({ appointments, loading, error, onEdit }) {
             {!loading && !error && list.length === 0 && (
               <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13.5 }}>لا توجد مواعيد بعد.</div>
             )}
-            {!loading && !error && list.map((a, i) => <AgendaRow key={a.id} a={a} last={i === list.length - 1} onEdit={onEdit} />)}
+            {!loading && !error && list.map((a, i) => <AgendaRow key={a.id} a={a} last={i === list.length - 1} onEdit={onEdit} onOpenVisit={onOpenVisit} />)}
           </div>
         </Card2>
         <SidePanel appointments={appointments} onEdit={onEdit} />
@@ -399,7 +380,7 @@ function AgendaTab({ appointments, loading, error, onEdit }) {
   );
 }
 
-function AgendaRow({ a, last, onEdit }) {
+function AgendaRow({ a, last, onEdit, onOpenVisit }) {
   const cancelled = a.status === 'cancelled';
   return (
     <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
@@ -421,6 +402,14 @@ function AgendaRow({ a, last, onEdit }) {
           </div>
           <div className="admin-row-actions" style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <StatusPill status={a.status} />
+            {/* Opens (or creates) the encounter behind this booking — diagnosis,
+                روشتة, تحاليل, أشعة and the supplies it consumed, all against the
+                same patient file. */}
+            {onOpenVisit && !cancelled && a.patientId && (
+              <button onClick={() => onOpenVisit(a)} title="فتح الكشف" aria-label="فتح الكشف" style={{ width: 36, height: 36, borderRadius: 11, border: '1px solid var(--brand-border)', background: 'var(--brand-subtle)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+                <Icon name="stethoscope" size={16} color="var(--teal-700)" />
+              </button>
+            )}
             {a.isNew
               ? <button onClick={() => onEdit(a)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, border: 'none', cursor: 'pointer', background: 'var(--brand)', color: '#fff', fontFamily: font, fontWeight: 700, fontSize: 13 }}><Icon name="check" size={15} color="#fff" stroke={2.5} />تأكيد</button>
               : <button onClick={() => onEdit(a)} style={{ width: 36, height: 36, borderRadius: 11, border: '1px solid var(--border-default)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="pencil" size={16} color="var(--text-body)" /></button>}
@@ -935,103 +924,6 @@ function AddAppointmentModal({ onClose, onCreated }) {
         )}
       </div>
     </div>
-  );
-}
-
-// ---------- Reminders + notifications ----------
-function RemindersTab() {
-  const [rem, setRem] = useState(AS.reminders);
-  const [ch, setCh] = useState(AS.channels);
-  const toggleRem = id => setRem(rem.map(r => r.id === id ? { ...r, on: !r.on } : r));
-  const toggleCh = id => setCh(ch.map(c => c.id === id ? { ...c, on: !c.on } : c));
-  return (
-    <div className="admin-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr', gap: 20, alignItems: 'start' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <Card2>
-          <SectionTitle sub="يُرسَل تلقائياً لكل موعد مؤكد">جدولة التذكيرات</SectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {rem.map(r => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 15, borderRadius: 15, background: r.on ? 'var(--brand-subtle)' : 'var(--surface-page)', border: '1px solid ' + (r.on ? 'var(--brand-border)' : 'var(--border-subtle)') }}>
-                <Ring2 icon="bell" tone={r.on ? 'var(--brand)' : 'var(--gray-400)'} size={40} />
-                <div><div style={{ fontFamily: font, fontWeight: 800, color: 'var(--text-strong)', fontSize: 15 }}>{r.title}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{r.timing}</div></div>
-                <div style={{ marginInlineStart: 'auto' }}><Toggle on={r.on} onClick={() => toggleRem(r.id)} /></div>
-              </div>
-            ))}
-          </div>
-        </Card2>
-        <Card2>
-          <SectionTitle sub="اختر كيف يصل الإشعار للعميل">قنوات الإرسال</SectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {ch.map(c => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--border-subtle)' }}>
-                <div style={{ width: 38, height: 38, borderRadius: 11, background: `color-mix(in srgb, ${c.color} 14%, white)`, color: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={c.icon} size={20} /></div>
-                <span style={{ fontFamily: font, fontWeight: 700, color: 'var(--text-strong)', fontSize: 14.5 }}>{c.label}</span>
-                <div style={{ marginInlineStart: 'auto' }}><Toggle on={c.on} onClick={() => toggleCh(c.id)} /></div>
-              </div>
-            ))}
-          </div>
-        </Card2>
-        <MessagePreview />
-      </div>
-      <NotificationsBoard />
-    </div>
-  );
-}
-
-function MessagePreview() {
-  const c = AS.chosen;
-  return (
-    <Card2>
-      <SectionTitle sub="نص التذكير كما يصل العميل">معاينة الرسالة</SectionTitle>
-      <div style={{ background: '#dcf8c6', color: '#0b2e13', borderRadius: '4px 16px 16px 16px', padding: '14px 16px', fontSize: 13.5, lineHeight: 1.8, fontFamily: body }}>
-        <div style={{ fontFamily: font, fontWeight: 800, marginBottom: 6 }}>تذكير بموعدك</div>
-        مرحباً {AS.patient.name}، نذكّرك بأن لديك موعداً غداً.<br />
-        الخدمة: {c.service}<br />الطبيب: {c.doctor}<br />التاريخ: {c.date}<br />الوقت: {c.time}<br />الفرع: {c.branch}
-        <div style={{ marginTop: 6 }}>نتمنى لك السلامة.</div>
-        <div style={{ textAlign: 'start', fontSize: 11, color: '#5a7a52', marginTop: 6 }}>✓✓ 4:00 مساءً</div>
-      </div>
-    </Card2>
-  );
-}
-
-const N_COLS = [
-  ['scheduled', 'مجدول'],
-  ['sent', 'تم الإرسال'],
-  ['delivered', 'تم الاستلام'],
-  ['failed', 'فشل'],
-];
-function NotificationsBoard() {
-  return (
-    <Card2 style={{ height: '100%' }}>
-      <SectionTitle sub="متابعة كل إشعار: مجدول ← مُرسل ← مُستلَم">لوحة حالة الإشعارات</SectionTitle>
-      <div className="admin-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-        {N_COLS.map(([st, lb]) => {
-          const items = AS.notifications.filter(n => n.status === st);
-          const col = `var(--status-${st})`;
-          return (
-            <div key={st} style={{ background: 'var(--surface-page)', borderRadius: 14, padding: 10, minHeight: 260 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 6px 10px' }}>
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: col }} />
-                <span style={{ fontFamily: font, fontWeight: 800, fontSize: 12.5, color: 'var(--text-strong)' }}>{lb}</span>
-                <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>{items.length}</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {items.map(n => (
-                  <div key={n.id} style={{ background: '#fff', borderRadius: 11, border: '1px solid var(--border-subtle)', borderInlineStart: '3px solid ' + col, padding: 10 }}>
-                    <div style={{ fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-strong)' }}>{n.customer}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{n.kind}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, fontSize: 10.5, color: 'var(--text-muted)' }}>
-                      <Icon name={n.channel === 'WhatsApp' ? 'message-circle' : 'message-square'} size={12} color={n.channel === 'WhatsApp' ? 'var(--whatsapp)' : 'var(--blue-500)'} />{n.channel} · {n.time}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Card2>
   );
 }
 
@@ -1563,211 +1455,10 @@ function AccountingTab() {
   );
 }
 
-// ---------- Customers ----------
-function CustomerEditModal({ customer, onClose, onSaved }) {
-  const [name, setName] = useState(customer.name || '');
-  const [phone, setPhone] = useState(toLocalPhone(customer.phone));
-  const [email, setEmail] = useState(customer.email || '');
-  const [status, setStatus] = useState(customer.status || 'active');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSave = async () => {
-    const storedPhone = toStoredPhone(phone);
-    if (!storedPhone) { setError('رقم الهاتف غير صحيح. استخدم صيغة مصرية مثل 01xxxxxxxxx.'); return; }
-    setSaving(true);
-    setError('');
-    try {
-      const updated = await updateCustomer(customer.id, { name: name.trim(), phone: storedPhone, email: email.trim() || null, status });
-      onSaved(updated);
-    } catch (e) {
-      setError(e.message || 'تعذّر حفظ التعديلات.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="admin-modal-backdrop" style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
-      <div className="admin-modal" style={{ width: 480, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
-          <div style={{ fontFamily: font, fontWeight: 800, fontSize: 19, color: 'var(--text-strong)' }}>تعديل بيانات العميل</div>
-          <button onClick={onClose} style={{ marginInlineStart: 'auto', width: 38, height: 38, borderRadius: 11, border: '1px solid var(--border-subtle)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={19} color="var(--text-body)" /></button>
-        </div>
-        <div style={{ padding: 24 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Field label="الاسم"><Input iconStart="user-round" value={name} onChange={e => setName(e.target.value)} /></Field>
-            <Field label="رقم الهاتف"><Input iconStart="phone" value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" /></Field>
-            <Field label="البريد الإلكتروني (اختياري)"><Input iconStart="mail" value={email} onChange={e => setEmail(e.target.value)} /></Field>
-            <div>
-              <div style={{ fontFamily: font, fontWeight: 700, fontSize: 13.5, color: 'var(--text-strong)', marginBottom: 9 }}>الحالة</div>
-              <div style={{ display: 'flex', gap: 9 }}>
-                {[['active', 'نشط'], ['suspended', 'موقوف']].map(([id, label]) => (
-                  <button key={id} onClick={() => setStatus(id)} style={{ flex: 1, padding: '11px 0', borderRadius: 12, fontFamily: font, fontWeight: 700, fontSize: 13.5, cursor: 'pointer', background: status === id ? 'var(--brand)' : 'var(--white)', border: status === id ? '2px solid var(--brand)' : '1.5px solid var(--border-subtle)', color: status === id ? '#fff' : 'var(--text-body)' }}>{label}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-          {error && <div style={{ marginTop: 14 }}><Alert tone="danger">{error}</Alert></div>}
-          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-            <button onClick={onClose} style={{ flex: '0 0 auto', padding: '13px 22px', borderRadius: 999, border: '1.5px solid var(--border-default)', background: '#fff', cursor: 'pointer', fontFamily: font, fontWeight: 700, fontSize: 14, color: 'var(--text-body)' }}>إلغاء</button>
-            <button disabled={!name.trim() || !phone.trim() || saving} onClick={handleSave} style={{ flex: 1, padding: '13px', borderRadius: 999, border: 'none', cursor: 'pointer', background: 'var(--brand)', color: '#fff', fontFamily: font, fontWeight: 800, fontSize: 15, boxShadow: 'var(--shadow-brand)', opacity: (!name.trim() || !phone.trim() || saving) ? 0.5 : 1 }}>{saving ? 'جارِ الحفظ…' : 'حفظ التعديلات'}</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const CUSTOMER_FILTERS = [['all', 'الكل'], ['booked', 'لديهم حجوزات'], ['leads', 'عملاء محتملون']];
-
-function CustomersTab({ appointments }) {
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
-  const [custFilter, setCustFilter] = useState('all');
-  const [editing, setEditing] = useState(null);
-
-  useEffect(() => {
-    listCustomersDetailed()
-      .then(setCustomers)
-      .catch(e => setError(e.message || 'تعذّر تحميل العملاء.'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Per-customer stats derived from the appointments already loaded for the dashboard.
-  const statsByCustomer = {};
-  appointments.forEach(a => {
-    if (!a.customerId) return; // guest bookings (no linked account) aren't in the customers directory
-    const s = statsByCustomer[a.customerId] || { total: 0, upcoming: 0, cancelled: 0, branches: {}, services: {} };
-    s.total += 1;
-    if (a.status !== 'cancelled') {
-      const today = new Date().toISOString().slice(0, 10);
-      if (a.date >= today) s.upcoming += 1;
-    } else {
-      s.cancelled += 1;
-    }
-    if (a.branch) s.branches[a.branch] = (s.branches[a.branch] || 0) + 1;
-    if (a.service) s.services[a.service] = (s.services[a.service] || 0) + 1;
-    statsByCustomer[a.customerId] = s;
-  });
-
-  const mainBranch = id => {
-    const s = statsByCustomer[id];
-    if (!s) return '—';
-    const sorted = Object.entries(s.branches).sort((a, b) => b[1] - a[1]);
-    return sorted.length ? sorted[0][0] : '—';
-  };
-
-  const servicesTaken = id => Object.keys(statsByCustomer[id]?.services || {});
-  const isLead = id => !statsByCustomer[id]?.total;
-  const leadsCount = customers.filter(c => isLead(c.id)).length;
-
-  const filtered = customers
-    .filter(c => {
-      if (!search.trim()) return true;
-      const q = search.trim();
-      return (c.name || '').includes(q) || (c.phone || '').includes(q);
-    })
-    .filter(c => {
-      if (custFilter === 'booked') return !isLead(c.id);
-      if (custFilter === 'leads') return isLead(c.id);
-      return true;
-    });
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <Card2 pad={0} style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>كل العملاء</div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{customers.length} عميل مسجّل{leadsCount > 0 ? ` · ${leadsCount} عميل محتمل لم يحجز بعد` : ''}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {CUSTOMER_FILTERS.map(([id, label]) => (
-              <span key={id} onClick={() => setCustFilter(id)} style={{ fontSize: 12.5, fontWeight: 700, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', background: custFilter === id ? 'var(--brand-subtle)' : 'transparent', color: custFilter === id ? 'var(--teal-700)' : 'var(--text-muted)', border: custFilter === id ? '1px solid var(--brand-border)' : '1px solid transparent', whiteSpace: 'nowrap' }}>{label}</span>
-            ))}
-          </div>
-          <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-page)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '9px 16px', width: 240 }}>
-            <Icon name="search" size={16} color="var(--text-muted)" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بالاسم أو الهاتف…"
-              style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-body)', width: '100%' }} />
-          </div>
-        </div>
-
-        {error && <div style={{ padding: '14px 22px 0' }}><Alert tone="danger">{error}</Alert></div>}
-        {loading && <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13.5 }}>جارِ التحميل…</div>}
-        {!loading && !error && filtered.length === 0 && (
-          <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13.5 }}>لا يوجد عملاء بعد.</div>
-        )}
-        {!loading && !error && filtered.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, minWidth: 780 }}>
-            <thead>
-              <tr style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'start' }}>
-                {['العميل', 'رقم الهاتف', 'عميل منذ', 'الخدمات', 'إجمالي الحجوزات', 'قادمة', 'الفرع الأساسي', 'الحالة', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'start', fontWeight: 600, padding: '10px 22px', borderBottom: '1px solid var(--border-subtle)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(c => {
-                const s = statsByCustomer[c.id];
-                const services = servicesTaken(c.id);
-                return (
-                  <tr key={c.id}>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Avatar name={c.name || 'عميل'} />
-                        <span style={{ fontFamily: font, fontWeight: 700, color: 'var(--text-strong)' }}>{c.name || 'بدون اسم'}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-body)' }} dir="ltr">{toLocalPhone(c.phone)}</td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                      {c.created_at ? new Date(c.created_at).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' }) : '—'}
-                    </td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', maxWidth: 220 }}>
-                      {services.length ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                          {services.map(name => (
-                            <span key={name} style={{ fontSize: 11, fontWeight: 700, color: 'var(--teal-700)', background: 'var(--brand-subtle)', padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{name}</span>
-                          ))}
-                        </div>
-                      ) : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--amber-700)', background: 'var(--accent-subtle)', padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>عميل محتمل</span>}
-                    </td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', fontFamily: font, fontWeight: 800, color: 'var(--text-strong)' }}>{s?.total ?? 0}</td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-body)' }}>{s?.upcoming ?? 0}</td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-body)' }}>{mainBranch(c.id)}</td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)' }}>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: c.status === 'active' ? 'var(--green-600)' : 'var(--gray-500)', background: c.status === 'active' ? 'var(--green-50)' : 'var(--surface-sunken)', padding: '5px 12px', borderRadius: 999 }}>{c.status === 'active' ? 'نشط' : 'موقوف'}</span>
-                    </td>
-                    <td style={{ padding: '13px 22px', borderBottom: '1px solid var(--border-subtle)' }}>
-                      <button onClick={() => setEditing(c)} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid var(--border-default)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon name="pencil" size={15} color="var(--text-body)" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-        )}
-      </Card2>
-      {editing && (
-        <CustomerEditModal
-          customer={editing}
-          onClose={() => setEditing(null)}
-          onSaved={updated => {
-            setCustomers(list => list.map(c => c.id === updated.id ? updated : c));
-            setEditing(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
+// ---------- Customers & patients ----------
+// The العملاء table now lives in admin/PatientsTab.jsx: same columns and filters,
+// but sourced from `patients` (which also covers walk-ins) and with each row
+// opening the person's full medical file.
 
 // ---------- Staff ----------
 function RoleBadge({ roleName }) {
@@ -2081,10 +1772,29 @@ function PermissionsTab() {
 }
 
 // ---------- shell ----------
+// Shown if someone lands on a gated tab their role can't use (deep link, or a
+// permission revoked while the dashboard was open). The tables enforce the same
+// rule in RLS — this is only the friendly version of the refusal.
+function NoAccess() {
+  return (
+    <Card2>
+      <div style={{ padding: '30px 20px', textAlign: 'center' }}>
+        <div style={{ width: 54, height: 54, borderRadius: 16, background: 'var(--surface-sunken)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+          <Icon name="lock" size={24} />
+        </div>
+        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 16, color: 'var(--text-strong)', marginTop: 12 }}>لا تملك صلاحية الوصول لهذا القسم</div>
+        <div style={{ color: 'var(--text-muted)', fontSize: 13.5, marginTop: 5, lineHeight: 1.7 }}>تواصل مع مدير العيادة لتفعيل الصلاحية من تبويب «الصلاحيات».</div>
+      </div>
+    </Card2>
+  );
+}
+
 function AdminDashboard({ initialTab = 'agenda' }) {
+  const { can } = useAuth();
   const [tab, setTab] = useState(initialTab);
   const [modal, setModal] = useState(null);
   const [showAddAppt, setShowAddAppt] = useState(false);
+  const [visitAppt, setVisitAppt] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [apptsLoading, setApptsLoading] = useState(true);
   const [apptsError, setApptsError] = useState('');
@@ -2138,10 +1848,20 @@ function AdminDashboard({ initialTab = 'agenda' }) {
           onBranchAdded={b => setBranches(bs => [...bs, b].sort((x, y) => x.name.localeCompare(y.name, 'ar')))}
         />
         <div className="admin-content" style={{ flex: 1, overflowY: 'auto', padding: 26 }}>
-          {tab === 'agenda' && <AgendaTab appointments={visibleAppointments} loading={apptsLoading} error={apptsError} onEdit={setModal} />}
+          {tab === 'agenda' && (
+            <AgendaTab
+              appointments={visibleAppointments}
+              loading={apptsLoading}
+              error={apptsError}
+              onEdit={setModal}
+              onOpenVisit={can('medical_records_manage') ? setVisitAppt : undefined}
+            />
+          )}
           {tab === 'availability' && <DoctorsTab />}
-          {tab === 'customers' && <CustomersTab appointments={appointments} />}
-          {tab === 'reminders' && <RemindersTab />}
+          {tab === 'customers' && <PatientsTab appointments={appointments} onRefreshAppointments={refetchAppointments} />}
+          {tab === 'inventory' && (can('inventory_view')
+            ? <InventoryTab branchId={selectedBranchId} />
+            : <NoAccess />)}
           {tab === 'accounting' && <AccountingTab />}
           {tab === 'staff' && <StaffTab />}
           {tab === 'permissions' && <PermissionsTab />}
@@ -2152,6 +1872,14 @@ function AdminDashboard({ initialTab = 'agenda' }) {
         <AddAppointmentModal
           onClose={() => setShowAddAppt(false)}
           onCreated={() => { setShowAddAppt(false); refetchAppointments(); }}
+        />
+      )}
+      {visitAppt && (
+        <VisitModal
+          appointmentId={visitAppt.id}
+          patient={{ id: visitAppt.patientId, name: visitAppt.customer }}
+          defaults={{ doctorId: visitAppt.doctorId, branchId: visitAppt.branchId, date: visitAppt.date, reason: visitAppt.service }}
+          onClose={() => setVisitAppt(null)}
         />
       )}
     </div>

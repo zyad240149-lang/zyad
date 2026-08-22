@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .env
+
+# Supabase CLI local state (project ref / cached version) — machine-specific.
+supabase/.temp/

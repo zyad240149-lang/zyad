@@ -33,6 +33,9 @@ export function toStoredPhone(input) {
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined); // undefined = still loading
   const [profile, setProfile] = useState(null);
+  // Effective permissions for this staff member's role, from the same
+  // role_permissions matrix the الصلاحيات tab edits. null = not loaded yet.
+  const [permissions, setPermissions] = useState(null);
 
   useEffect(() => {
     if (!supabase) { setSession(null); return; }
@@ -60,12 +63,43 @@ export function AuthProvider({ children }) {
   // would see isStaff=false (profile stale/null) for one render right after login.
   const loading = session === undefined || (!!session?.user && profile?.id !== session.user.id);
 
+  const isStaff = (!loading && profile) ? profile.role !== 'customer' : false;
+
+  useEffect(() => {
+    if (!supabase || !isStaff || !profile?.role) { setPermissions(null); return; }
+    // The owner's access is unconditional, so there's nothing to fetch for them.
+    if (profile.role === 'owner') { setPermissions({}); return; }
+    let cancelled = false;
+    supabase.from('role_permissions').select('module, level').eq('role_id', profile.role)
+      .then(({ data }) => {
+        if (!cancelled) setPermissions(Object.fromEntries((data ?? []).map(r => [r.module, r.level])));
+      });
+    return () => { cancelled = true; };
+  }, [isStaff, profile?.role]);
+
+  /**
+   * Can the signed-in staff member use this feature module?
+   * UI-level only — every gated table also enforces the same module in RLS via
+   * has_permission(), so hiding a button is never the actual protection.
+   */
+  const can = module => {
+    if (!isStaff || !profile || profile.status !== 'active') return false;
+    if (profile.role === 'owner') return true;
+    const level = permissions?.[module];
+    return !!level && level !== 'none';
+  };
+
   const value = {
     session,
     user: session?.user ?? null,
     profile,
     loading,
-    isStaff: (!loading && profile) ? profile.role !== 'customer' : false,
+    isStaff,
+    permissions,
+    // Distinct from `loading`: the session is settled but the permission matrix
+    // hasn't arrived, so `can()` would answer false for a moment.
+    permissionsLoading: isStaff && permissions === null,
+    can,
 
     async signInWithPassword(rawPhone, password) {
       if (!supabase) throw new Error('Supabase غير مهيأ — أضف VITE_SUPABASE_ANON_KEY في .env');
@@ -145,11 +179,14 @@ export function AuthProvider({ children }) {
       return { session: data.session, profile: row };
     },
 
-    async completeProfile({ name }) {
+    async completeProfile({ name, email }) {
       if (!supabase || !session?.user) throw new Error('لا توجد جلسة نشطة');
+      const patch = {};
+      if (name !== undefined) patch.name = name;
+      if (email !== undefined) patch.email = email;
       const { data, error } = await supabase
         .from('profiles')
-        .update({ name })
+        .update(patch)
         .eq('id', session.user.id)
         .select()
         .single();
