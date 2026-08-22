@@ -15,7 +15,7 @@ const STYLE = `
 const BENEFITS = [
   ['calendar-check', 'احجز في عيادتك المفضّلة في أقل من دقيقة'],
   ['shield-check', 'تحقق تلقائي يمنع تعارض الحجوزات'],
-  ['bell-ring', 'تذكير تلقائي بموعدك عبر واتساب وSMS'],
+  ['calendar-check', 'تابع حجوزاتك وعدّلها من حسابك في أي وقت'],
 ];
 
 function BrandPanel() {

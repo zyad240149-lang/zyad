@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import InstallApp from '../components/InstallApp.jsx';
+import Pricing from '../components/Pricing.jsx';
 
 const { Icon, Button, Card } = window.MeaadDesignSystem_54b82a;
 const font = 'var(--font-display)';
@@ -41,7 +43,7 @@ function Logo({ size = 40, dark }) {
   );
 }
 
-const NAV = [['المميزات', '#features'], ['كيف يعمل', '#how'], ['الأرقام', '#stats'], ['تواصل معنا', '#footer']];
+const NAV = [['المميزات', '#features'], ['كيف يعمل', '#how'], ['الأسعار', '#pricing'], ['الأرقام', '#stats'], ['تواصل معنا', '#footer']];
 
 function Nav() {
   const navigate = useNavigate();
@@ -59,6 +61,7 @@ function Nav() {
           <span className="desktop-only" style={{ display: 'inline-flex' }}>
             <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>تسجيل الدخول</Button>
           </span>
+          <InstallApp variant="secondary" size="sm" />
           <Button variant="primary" size="sm" iconEnd="arrow-left" onClick={() => navigate('/signup')}>احجز دلوقي</Button>
           <button className="nav-burger" onClick={() => setOpen(o => !o)} style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid var(--border-subtle)', background: '#fff', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <Icon name={open ? 'x' : 'menu'} size={20} color="var(--text-strong)" />
@@ -105,7 +108,7 @@ function HeroVisual() {
       <div style={{ position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--amber-500)', opacity: .16, filter: 'blur(46px)', bottom: 0, insetInlineStart: 10 }} />
       <TicketMock />
       <div style={{ position: 'absolute', top: 24, insetInlineStart: 0, display: 'flex', alignItems: 'center', gap: 9, background: '#fff', borderRadius: 999, padding: '10px 16px', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-subtle)', transform: 'rotate(-4deg)' }}>
-        <Icon name="message-circle" size={17} color="var(--whatsapp)" /><span style={{ fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-strong)' }}>تذكير قبل ساعة</span>
+        <Icon name="check-check" size={17} color="var(--brand)" /><span style={{ fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-strong)' }}>تأكيد بضغطة واحدة</span>
       </div>
       <div style={{ position: 'absolute', bottom: 30, insetInlineEnd: 0, display: 'flex', alignItems: 'center', gap: 9, background: '#fff', borderRadius: 999, padding: '10px 16px', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-subtle)', transform: 'rotate(3deg)' }}>
         <Icon name="shield-check" size={17} color="var(--green-500)" /><span style={{ fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-strong)' }}>لا تعارض حجوزات</span>
@@ -124,7 +127,7 @@ function Hero() {
         </span>
         <h1 style={{ fontFamily: font, fontWeight: 900, fontSize: 48, lineHeight: 1.18, color: 'var(--text-strong)', margin: '18px 0 0', textWrap: 'balance' }}>احجز عيادتك القادمة في أقل من دقيقة</h1>
         <p style={{ fontSize: 17, lineHeight: 1.85, color: 'var(--text-muted)', maxWidth: 500, marginTop: 16 }}>
-          ميعاد يجمع حجز العملاء، لوحة تحكم الإدارة، والتذكيرات التلقائية عبر واتساب وSMS والبريد — في مكان واحد، بلا تعارض حجوزات وبلا مواعيد ضائعة.
+          ميعاد يجمع حجز العملاء ولوحة تحكم الإدارة في مكان واحد، بلا تعارض حجوزات وبلا مواعيد ضائعة.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 28 }}>
           <Button size="lg" iconEnd="arrow-left" onClick={() => navigate('/signup')}>احجز دلوقي</Button>
@@ -147,7 +150,7 @@ function Hero() {
 const FEATURES = [
   { ic: 'smartphone', title: 'حجز في ثوانٍ', desc: 'تجربة حجز سريعة وبسيطة للعميل من الموبايل، بلا تعقيد وبلا اتصال هاتفي.' },
   { ic: 'shield-check', title: 'منع تعارض الحجوزات', desc: 'تحقق تلقائي من التوفّر يمنع ازدواج الحجز على نفس الطبيب والوقت.' },
-  { ic: 'bell-ring', title: 'تذكيرات تلقائية', desc: 'تذكير قبل 24 ساعة وقبل ساعة عبر واتساب أو SMS أو البريد الإلكتروني.' },
+  { ic: 'shield', title: 'صلاحيات مخصّصة للفريق', desc: 'تحكم في وصول كل موظف حسب دوره — استقبال، محاسب، طبيب، أو مدير.' },
   { ic: 'monitor', title: 'لوحة تحكم شاملة', desc: 'إدارة المواعيد والأطباء والحسابات من مركز تحكم واحد لفريقك.' },
   { ic: 'map-pin', title: 'دعم متعدد الفروع', desc: 'أضف فروعك المختلفة وتابع إشغال وأداء كل فرع على حدة.' },
   { ic: 'wallet', title: 'تقارير مالية فورية', desc: 'تابع الإيرادات والفواتير والمدفوعات لحظة بلحظة، بدون تجميع يدوي.' },
@@ -158,7 +161,7 @@ function Features() {
     <section id="features" className="wrap" style={{ padding: '30px 0 80px' }}>
       <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 44px' }}>
         <h2 style={{ fontFamily: font, fontWeight: 900, fontSize: 34, color: 'var(--text-strong)', margin: 0 }}>كل ما تحتاجه عيادتك في مكان واحد</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: 16, lineHeight: 1.8, marginTop: 12 }}>من حجز العميل الأول حتى تذكيره بموعده — ميعاد يغطي الرحلة كاملة.</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 16, lineHeight: 1.8, marginTop: 12 }}>من حجز العميل الأول حتى تأكيد موعده — ميعاد يغطي الرحلة كاملة.</p>
       </div>
       <div className="features-grid">
         {FEATURES.map(f => (
@@ -176,7 +179,7 @@ function Features() {
 const STEPS = [
   { ic: 'smartphone', title: 'العميل يحجز', desc: 'يختار الفرع والخدمة والطبيب والوقت المناسب في خطوات قصيرة.' },
   { ic: 'check-check', title: 'الإدارة تؤكد', desc: 'يستقبل الفريق الحجز، يتحقق من التوفّر، ويؤكده بضغطة واحدة.' },
-  { ic: 'bell', title: 'تذكير تلقائي', desc: 'يصل العميل تذكيران — قبل يوم وقبل ساعة — عبر القناة المفضّلة له.' },
+  { ic: 'calendar-check', title: 'العميل يتابع', desc: 'يقدر العميل يشوف حالة حجزه ويعدّله أو يلغيه من حسابه في أي وقت.' },
 ];
 
 function How() {
@@ -251,7 +254,7 @@ function Footer() {
       <div className="wrap footer-grid">
         <div>
           <Logo size={36} />
-          <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.8, marginTop: 14, maxWidth: 280 }}>منصة عربية لإدارة حجوزات العيادات وتذكير العملاء تلقائياً عبر واتساب وSMS والبريد.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.8, marginTop: 14, maxWidth: 280 }}>منصة عربية لإدارة حجوزات العيادات ومتابعتها، بلا تعارض حجوزات وبلا تعقيد.</p>
         </div>
         {FOOTER_COLS.map(([title, links]) => (
           <div key={title}>
@@ -282,6 +285,7 @@ export default function Landing() {
       <Hero />
       <Features />
       <How />
+      <Pricing />
       <Stats />
       <CtaBanner />
       <Footer />

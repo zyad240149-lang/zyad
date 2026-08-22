@@ -15,7 +15,7 @@ const STYLE = `
 const BENEFITS = [
   ['calendar-check', 'إدارة كل مواعيد عيادتك من مكان واحد'],
   ['shield-check', 'تحقق تلقائي يمنع تعارض الحجوزات'],
-  ['bell-ring', 'تذكيرات تلقائية للعملاء عبر واتساب وSMS'],
+  ['users-round', 'صلاحيات مخصّصة لكل عضو في فريقك'],
 ];
 
 function BrandPanel() {

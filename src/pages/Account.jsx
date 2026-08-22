@@ -7,7 +7,7 @@ import { getDoctorSchedule, computeSlotsForDay } from '../lib/api/availability.j
 import { formatArabicTime } from '../lib/time.js';
 import Countdown from '../components/Countdown.jsx';
 
-const { Icon, Button, Card, Field, Input, StatusPill, Avatar, Switch, Alert } = window.MeaadDesignSystem_54b82a;
+const { Icon, Button, Card, Field, Input, StatusPill, Avatar, Alert } = window.MeaadDesignSystem_54b82a;
 const font = 'var(--font-display)';
 
 const STYLE = `
@@ -26,12 +26,6 @@ const STYLE = `
   }
 `;
 
-// Notifications aren't wired to a live feed yet (no read API for the `reminders` table
-// built in this pass) — shown as illustrative examples only.
-const NOTIFICATIONS = [
-  { id: 'n1', kind: 'تأكيد الحجز', channel: 'WhatsApp', icon: 'message-circle', color: 'var(--whatsapp)', time: 'قبل دقائق', status: 'delivered' },
-  { id: 'n2', kind: 'تذكير قبل 24 ساعة', channel: 'WhatsApp', icon: 'message-circle', color: 'var(--whatsapp)', time: 'أمس 5:00 مساءً', status: 'delivered' },
-];
 
 function StarRating({ value, onChange, size = 22, readOnly }) {
   return (
@@ -55,7 +49,7 @@ function groupOf(a) {
 function TopNav({ tab, setTab }) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
-  const links = [['نظرة عامة', 'overview'], ['مواعيدي', 'appointments'], ['الإشعارات', 'notifications'], ['الملف الشخصي', 'profile']];
+  const links = [['نظرة عامة', 'overview'], ['مواعيدي', 'appointments'], ['الملف الشخصي', 'profile']];
   const handleLogout = async () => { await signOut(); navigate('/login'); };
   return (
     <div style={{ background: '#fff', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 30 }}>
@@ -86,7 +80,6 @@ function ProfileCard({ tab, setTab }) {
   const links = [
     ['layout-grid', 'نظرة عامة', 'overview'],
     ['calendar-days', 'مواعيدي', 'appointments'],
-    ['bell', 'الإشعارات', 'notifications'],
     ['user-round', 'الملف الشخصي', 'profile'],
   ];
   const memberSince = profile?.created_at
@@ -335,7 +328,7 @@ function NextAppointment({ next, onOpen }) {
   );
 }
 
-function Overview({ appointments, loading, error, goTo, onOpen }) {
+function Overview({ appointments, loading, error, onOpen }) {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const grouped = appointments.map(a => ({ ...a, group: groupOf(a) }));
@@ -350,7 +343,7 @@ function Overview({ appointments, loading, error, goTo, onOpen }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontFamily: font, fontWeight: 900, fontSize: 24, color: 'var(--text-strong)', margin: 0 }}>مرحباً، {profile?.name || 'بك'} 👋</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>هذه نظرة سريعة على حجوزاتك وتذكيراتك.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>هذه نظرة سريعة على حجوزاتك.</p>
         </div>
         <Button iconStart="plus" onClick={() => navigate('/book')}>حجز موعد جديد</Button>
       </div>
@@ -368,22 +361,6 @@ function Overview({ appointments, loading, error, goTo, onOpen }) {
       </div>
 
       {!loading && <NextAppointment next={next} onOpen={onOpen} />}
-
-      <Card padding={22}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontFamily: font, fontWeight: 800, fontSize: 16.5, color: 'var(--text-strong)' }}>آخر الإشعارات</div>
-          <button onClick={() => goTo('notifications')} style={{ marginInlineStart: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-link)', fontFamily: font, fontWeight: 700, fontSize: 13 }}>عرض الكل</button>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {NOTIFICATIONS.map(n => (
-            <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 13, background: 'var(--surface-page)' }}>
-              <span style={{ width: 34, height: 34, borderRadius: 10, flex: '0 0 auto', background: `color-mix(in srgb, ${n.color} 14%, white)`, color: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={n.icon} size={16} /></span>
-              <span style={{ fontSize: 13.5, color: 'var(--text-body)', flex: 1 }}>{n.kind}</span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{n.time}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }
@@ -439,44 +416,18 @@ function Appointments({ appointments, loading, error, onOpen, feedback }) {
   );
 }
 
-function Notifications() {
-  const STATUS_LABEL = { scheduled: 'مجدول', sent: 'تم الإرسال', delivered: 'تم الاستلام', failed: 'فشل' };
-  return (
-    <Card padding={0} style={{ overflow: 'hidden' }}>
-      <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)' }}>الإشعارات</div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>كل تذكير وتحديث يخص حجوزاتك</div>
-      </div>
-      <div style={{ padding: '8px 22px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {NOTIFICATIONS.map(n => (
-          <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 14, borderRadius: 15, border: '1px solid var(--border-subtle)' }}>
-            <span style={{ width: 40, height: 40, borderRadius: 12, flex: '0 0 auto', background: `color-mix(in srgb, ${n.color} 14%, white)`, color: n.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={n.icon} size={19} /></span>
-            <div style={{ flex: 1, minWidth: 140 }}>
-              <div style={{ fontFamily: font, fontWeight: 700, fontSize: 14, color: 'var(--text-strong)' }}>{n.kind}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{n.channel} · {n.time}</div>
-            </div>
-            <StatusPill status={n.status} label={STATUS_LABEL[n.status]} />
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
 function Profile() {
   const { profile, completeProfile } = useAuth();
   const [name, setName] = useState(profile?.name || '');
   const [email, setEmail] = useState(profile?.email || '');
-  const [channels, setChannels] = useState({ wa: true, sms: true, email: false });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const toggle = k => setChannels(c => ({ ...c, [k]: !c[k] }));
 
   const save = async () => {
     setSaving(true);
     setSaved(false);
     try {
-      await completeProfile({ name });
+      await completeProfile({ name, email });
       setSaved(true);
     } finally {
       setSaving(false);
@@ -496,22 +447,8 @@ function Profile() {
             </div>
           </Field>
           <Field label="البريد الإلكتروني (اختياري)" style={{ gridColumn: '1 / -1' }}>
-            <Input iconStart="mail" placeholder="example@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+            <Input iconStart="mail" placeholder="example@email.com" value={email} onChange={e => setEmail(e.target.value)} dir="ltr" />
           </Field>
-        </div>
-      </Card>
-
-      <Card padding={24}>
-        <div style={{ fontFamily: font, fontWeight: 800, fontSize: 17, color: 'var(--text-strong)', marginBottom: 4 }}>قنوات التذكير المفضّلة</div>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13.5, marginBottom: 16 }}>اختر من أين تحب تستلم تذكيرات مواعيدك.</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[['wa', 'WhatsApp', 'message-circle', 'var(--whatsapp)'], ['sms', 'رسائل SMS', 'message-square', 'var(--blue-500)'], ['email', 'البريد الإلكتروني', 'mail', 'var(--gray-500)']].map(([k, label, ic, color]) => (
-            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--border-subtle)' }}>
-              <span style={{ width: 36, height: 36, borderRadius: 11, background: `color-mix(in srgb, ${color} 14%, white)`, color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={ic} size={18} /></span>
-              <span style={{ fontFamily: font, fontWeight: 700, fontSize: 14, color: 'var(--text-strong)' }}>{label}</span>
-              <div style={{ marginInlineStart: 'auto' }}><Switch checked={channels[k]} onChange={() => toggle(k)} /></div>
-            </div>
-          ))}
         </div>
       </Card>
 
@@ -550,9 +487,8 @@ export default function Account() {
         <div className="layout">
           <ProfileCard tab={tab} setTab={setTab} />
           <div>
-            {tab === 'overview' && <Overview appointments={appointments} loading={loading} error={error} goTo={setTab} onOpen={openDetail} />}
+            {tab === 'overview' && <Overview appointments={appointments} loading={loading} error={error} onOpen={openDetail} />}
             {tab === 'appointments' && <Appointments appointments={appointments} loading={loading} error={error} onOpen={openDetail} feedback={feedback} />}
-            {tab === 'notifications' && <Notifications />}
             {tab === 'profile' && <Profile />}
           </div>
         </div>
