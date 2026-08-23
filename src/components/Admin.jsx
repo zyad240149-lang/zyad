@@ -4,13 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { MeaadStory as AS } from '../data.js';
 import { useAuth, toLocalPhone } from '../lib/auth/AuthContext.jsx';
 import { listAllAppointments, updateAppointmentStatus, updateAppointment, createAppointment, deleteAppointment, isSlotTaken, listTakenTimes } from '../lib/api/appointments.js';
-import { listRolesWithPermissions, setRolePermission, listStaff, addPermissionModule, deletePermissionModule, addRole, deleteRole } from '../lib/api/staff.js';
+import { listRolesWithPermissions, setRolePermission, listStaff, setStaffStatus, createStaff, listRoles, addPermissionModule, deletePermissionModule, addRole, deleteRole } from '../lib/api/staff.js';
 import { listBranches, listDoctors, listCustomers, addBranch, addService, updateService } from '../lib/api/reference.js';
 import { getDoctorSchedule, setDayActive, addSchedulePeriod, deleteSchedulePeriod, listDoctorServices, setDoctorService, updateDoctorSettings, getBranchSchedule, setBranchDayActive, addBranchSchedulePeriod, deleteBranchSchedulePeriod } from '../lib/api/availability.js';
 import { formatArabicTime } from '../lib/time.js';
 // Shared primitives (Ring2/Toggle/Card2/SectionTitle) used to live here; they moved
 // to admin/ui.jsx so the newer sections are built from the same pieces.
-import { Ring2, Toggle, Card2, SectionTitle, font, body } from './admin/ui.jsx';
+import { Ring2, Toggle, Card2, SectionTitle, Btn, IconBtn, ModalShell, font, body } from './admin/ui.jsx';
 import InventoryTab from './admin/InventoryTab.jsx';
 import PatientsTab from './admin/PatientsTab.jsx';
 import VisitModal from './admin/VisitModal.jsx';
@@ -1478,20 +1478,50 @@ function RoleBadge({ roleName }) {
   );
 }
 
-function AddStaffModal({ branches, roleNames, onClose, onSave }) {
+const MIN_STAFF_PASSWORD = 8;
+
+/** Suggests a password the admin can hand over, rather than making them invent one. */
+function suggestPassword() {
+  // No lookalike characters (0/O, 1/l) — this gets read aloud or written on paper.
+  const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.getRandomValues(new Uint32Array(10));
+  return [...bytes].map(b => alphabet[b % alphabet.length]).join('');
+}
+
+function AddStaffModal({ branches, roles, onClose, onSave }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [branch, setBranch] = useState(branches[0]);
-  const [role, setRole] = useState(roleNames[0]);
-  const canSave = name && email && phone;
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [branchId, setBranchId] = useState('');
+  const [role, setRole] = useState(roles[0]?.id ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const passwordTooShort = !!password && password.length < MIN_STAFF_PASSWORD;
+  const canSave = !!name.trim() && !!phone.trim() && password.length >= MIN_STAFF_PASSWORD && !!role;
+
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const staff = await createStaff({ name, phone, email, password, role, branchId });
+      onSave(staff, password);
+    } catch (e) {
+      setError(e.message || 'تعذّر إضافة الموظف.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="admin-modal-backdrop" style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(6,60,60,.34)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
       <div className="admin-modal" style={{ width: 540, maxHeight: '100%', overflowY: 'auto', background: '#fff', borderRadius: 22, boxShadow: '0 40px 80px -20px rgba(0,0,0,.4)' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: font, fontWeight: 800, fontSize: 19, color: 'var(--text-strong)' }}>إضافة موظف</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>أضف عضو فريق جديد وحدد دوره وصلاحياته</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>أنشئ له حساباً بكلمة مرور — يسجّل الدخول برقم هاتفه</div>
           </div>
           <button onClick={onClose} style={{ marginInlineStart: 'auto', width: 38, height: 38, borderRadius: 11, border: '1px solid var(--border-subtle)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={19} color="var(--text-body)" /></button>
         </div>
@@ -1500,20 +1530,57 @@ function AddStaffModal({ branches, roleNames, onClose, onSave }) {
             <Field label="الاسم الكامل"><Input iconStart="user-round" value={name} onChange={e => setName(e.target.value)} placeholder="مثال: مريم فتحي" /></Field>
             <Field label="الدور / الصلاحية">
               <Select value={role} onChange={e => setRole(e.target.value)}>
-                {roleNames.map(r => <option key={r} value={r}>{r}</option>)}
+                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </Select>
             </Field>
-            <Field label="البريد الإلكتروني"><Input iconStart="mail" value={email} onChange={e => setEmail(e.target.value)} placeholder="example@meaad.sa" /></Field>
-            <Field label="رقم الهاتف"><Input iconStart="phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+20 1xx xxx xxxx" /></Field>
-            <Field label="الفرع" style={{ gridColumn: '1 / -1' }}>
-              <Select value={branch} onChange={e => setBranch(e.target.value)}>
-                {branches.map(b => <option key={b} value={b}>{b}</option>)}
+            <Field label="رقم الهاتف" hint="هذا هو اسم الدخول">
+              <Input iconStart="phone" value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" placeholder="01xx xxx xxxx" />
+            </Field>
+            <Field label="البريد الإلكتروني (اختياري)"><Input iconStart="mail" value={email} onChange={e => setEmail(e.target.value)} dir="ltr" placeholder="example@meaad.sa" /></Field>
+
+            {/* The password the admin hands over. Shown in clear on request — it has
+                to be readable to be passed on, and it's about to be told to the
+                employee anyway. */}
+            <Field
+              label="كلمة المرور"
+              hint={passwordTooShort ? `${MIN_STAFF_PASSWORD} أحرف على الأقل` : 'سلّمها للموظف — يمكنه تغييرها لاحقاً'}
+              style={{ gridColumn: '1 / -1' }}
+            >
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Input
+                  iconStart="lock"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  dir="ltr"
+                  placeholder="٨ أحرف على الأقل"
+                  style={{ flex: 1, minWidth: 160 }}
+                />
+                <button type="button" onClick={() => setShowPassword(v => !v)} title={showPassword ? 'إخفاء' : 'إظهار'}
+                  style={{ width: 44, height: 46, borderRadius: 12, border: '1.5px solid var(--border-default)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+                  <Icon name={showPassword ? 'eye-off' : 'eye'} size={17} color="var(--text-body)" />
+                </button>
+                <button type="button" onClick={() => { setPassword(suggestPassword()); setShowPassword(true); }}
+                  style={{ padding: '0 14px', height: 46, borderRadius: 12, border: '1.5px solid var(--border-default)', background: '#fff', cursor: 'pointer', fontFamily: font, fontWeight: 700, fontSize: 12.5, color: 'var(--text-body)', flex: '0 0 auto' }}>
+                  توليد
+                </button>
+              </div>
+            </Field>
+
+            <Field label="الفرع (اختياري)" style={{ gridColumn: '1 / -1' }}>
+              <Select value={branchId} onChange={e => setBranchId(e.target.value)} placeholder="كل الفروع">
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </Select>
             </Field>
           </div>
+
+          {error && <div style={{ marginTop: 14 }}><Alert tone="danger">{error}</Alert></div>}
+
           <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-            <button onClick={onClose} style={{ flex: '0 0 auto', padding: '13px 22px', borderRadius: 999, border: '1.5px solid var(--border-default)', background: '#fff', cursor: 'pointer', fontFamily: font, fontWeight: 700, fontSize: 14, color: 'var(--text-body)' }}>إلغاء</button>
-            <button disabled={!canSave} onClick={() => onSave({ id: 's-' + Date.now(), name, email, phone, branch, role, status: 'active' })} style={{ flex: 1, padding: '13px', borderRadius: 999, border: 'none', cursor: canSave ? 'pointer' : 'not-allowed', opacity: canSave ? 1 : 0.45, background: 'var(--brand)', color: '#fff', fontFamily: font, fontWeight: 800, fontSize: 15, boxShadow: canSave ? 'var(--shadow-brand)' : 'none' }}>إضافة الموظف</button>
+            <button onClick={onClose} disabled={saving} style={{ flex: '0 0 auto', padding: '13px 22px', borderRadius: 999, border: '1.5px solid var(--border-default)', background: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: font, fontWeight: 700, fontSize: 14, color: 'var(--text-body)' }}>إلغاء</button>
+            <button disabled={!canSave || saving} onClick={save} style={{ flex: 1, padding: '13px', borderRadius: 999, border: 'none', cursor: canSave && !saving ? 'pointer' : 'not-allowed', opacity: canSave && !saving ? 1 : 0.45, background: 'var(--brand)', color: '#fff', fontFamily: font, fontWeight: 800, fontSize: 15, boxShadow: canSave && !saving ? 'var(--shadow-brand)' : 'none' }}>
+              {saving ? 'جارِ إنشاء الحساب…' : 'إضافة الموظف'}
+            </button>
           </div>
         </div>
       </div>
@@ -1526,14 +1593,20 @@ function StaffTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const branches = AS.branches.map(b => b.name);
-  const roleNames = AS.roles.map(r => r.name);
+  // Real rows now, not the demo lists: a role id and a branch id have to exist in the
+  // database for the new account to resolve to anything.
+  const [branches, setBranches] = useState([]);
+  const [roles, setRoles] = useState([]);
+  // Shown once, right after creation, so the admin can pass the login on.
+  const [created, setCreated] = useState(null);   // { staff, password }
 
   useEffect(() => {
     listStaff()
       .then(rows => setStaff(rows.length ? rows : AS.staff))
       .catch(e => { setError(e.message); setStaff(AS.staff); })
       .finally(() => setLoading(false));
+    listBranches().then(setBranches).catch(() => {});
+    listRoles().then(setRoles).catch(() => {});
   }, []);
 
   const toggleStatus = async (s) => {
@@ -1582,7 +1655,35 @@ function StaffTab() {
         </div>
       </Card2>
       {showAdd && (
-        <AddStaffModal branches={branches} roleNames={roleNames} onClose={() => setShowAdd(false)} onSave={s => { setStaff(list => [...list, s]); setShowAdd(false); }} />
+        <AddStaffModal
+          branches={branches}
+          roles={roles.length ? roles : AS.roles}
+          onClose={() => setShowAdd(false)}
+          onSave={(s, password) => { setStaff(list => [...list, s]); setShowAdd(false); setCreated({ staff: s, password }); }}
+        />
+      )}
+
+      {created && (
+        <ModalShell
+          title="تم إنشاء الحساب"
+          sub={`${created.staff.name} يستطيع تسجيل الدخول الآن`}
+          onClose={() => setCreated(null)}
+          width={440}
+        >
+          <Alert tone="success">سلّم هذه البيانات للموظف. كلمة المرور لن تظهر مرة أخرى بعد إغلاق هذه النافذة.</Alert>
+          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[['رقم الدخول', toLocalPhone(created.staff.phone)], ['كلمة المرور', created.password]].map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'var(--surface-page)', border: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: 12.5, color: 'var(--text-muted)', minWidth: 84 }}>{label}</span>
+                <code dir="ltr" style={{ flex: 1, fontFamily: 'monospace', fontSize: 15, fontWeight: 700, color: 'var(--text-strong)', wordBreak: 'break-all' }}>{value}</code>
+                <IconBtn icon="copy" size={34} title={`نسخ ${label}`} onClick={() => navigator.clipboard?.writeText(value)} />
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 18 }}>
+            <Btn size="lg" block onClick={() => setCreated(null)}>تم</Btn>
+          </div>
+        </ModalShell>
       )}
     </div>
   );

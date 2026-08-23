@@ -82,3 +82,41 @@ export async function deleteRole(id) {
   const { error } = await supabase.from('roles').delete().eq('id', id);
   if (error) throw error;
 }
+
+/**
+ * Creates a staff member *with a login*: the admin picks the password, and the
+ * employee signs in with their phone number and that password straight away.
+ *
+ * This goes through the create-staff Edge Function rather than the client SDK for
+ * two reasons — auth.signUp() from the browser would swap the admin's own session
+ * for the new employee's, and creating a user properly needs the service_role key,
+ * which must never reach the browser. See supabase/functions/create-staff/index.ts.
+ */
+export async function createStaff({ name, phone, email, password, role, branchId }) {
+  if (!supabase) throw new Error('Supabase غير مهيأ');
+
+  const { data, error } = await supabase.functions.invoke('create-staff', {
+    body: { name, phone, email, password, role, branchId },
+  });
+
+  if (error) {
+    // FunctionsHttpError carries the real Arabic message in the response body; the
+    // error itself only says "non-2xx status code", which helps nobody.
+    let message = '';
+    try { message = (await error.context?.json())?.error ?? ''; } catch { /* not JSON */ }
+    if (/Failed to send|fetch/i.test(error.message ?? '') && !message) {
+      message = 'وظيفة إنشاء الحسابات غير منشورة بعد — شغّل: npx supabase functions deploy create-staff';
+    }
+    throw new Error(message || error.message || 'تعذّر إنشاء حساب الموظف.');
+  }
+  if (data?.error) throw new Error(data.error);
+  return data.staff;
+}
+
+/** Roles the admin can assign, from the DB (not the demo list in data.js). */
+export async function listRoles() {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('roles').select('id, name, color').order('name');
+  if (error) throw error;
+  return data ?? [];
+}
