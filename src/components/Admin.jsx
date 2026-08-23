@@ -115,7 +115,7 @@ const NAV = [
   ['users-round', 'الموظفون', 'staff'],
   ['shield-check', 'الصلاحيات', 'permissions'],
 ];
-function Rail({ tab, setTab, open, onClose }) {
+function Rail({ tab, setTab, open, onClose, todayCount = 0 }) {
   const { profile, signOut, can } = useAuth();
   const navigate = useNavigate();
   const initial = (profile?.name || 'م').trim()[0];
@@ -148,7 +148,7 @@ function Rail({ tab, setTab, open, onClose }) {
           return (
             <button key={id} onClick={() => pick(id)} aria-current={on ? 'page' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 13, cursor: 'pointer', border: 'none', textAlign: 'start', fontFamily: font, fontWeight: 700, fontSize: 14.5, transition: 'all .15s', background: on ? 'rgba(255,255,255,.14)' : 'transparent', color: on ? '#fff' : 'rgba(255,255,255,.62)' }}>
               <Icon name={ic} size={20} color={on ? '#fff' : 'rgba(255,255,255,.62)'} />{lb}
-              {id === 'agenda' && <span style={{ marginInlineStart: 'auto', fontSize: 11, background: 'var(--amber-500)', color: 'var(--teal-900)', fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>24</span>}
+              {id === 'agenda' && todayCount > 0 && <span style={{ marginInlineStart: 'auto', fontSize: 11, background: 'var(--amber-500)', color: 'var(--teal-900)', fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>{todayCount}</span>}
             </button>
           );
         })}
@@ -168,7 +168,9 @@ function Rail({ tab, setTab, open, onClose }) {
 }
 
 const TAB_META = {
-  agenda: { title: 'مواعيد اليوم', sub: 'الثلاثاء · 12 أغسطس 2026 · فرع أكتوبر' },
+  // The agenda subtitle is built from today's real date at render time — it used to
+  // be a fixed string that read '12 أغسطس 2026' forever.
+  agenda: { title: 'مواعيد اليوم', sub: null },
   availability: { title: 'المواعيد المتاحة', sub: 'جدول كل طبيب، خدماته، وإعدادات الحجز' },
   customers: { title: 'العملاء', sub: 'بيانات العملاء وحساباتهم وحجوزاتهم' },
   patients: { title: 'سجل المرضى', sub: 'الملف الطبي لكل مريض — زيارات، أدوية، تحاليل، ومرفقات' },
@@ -259,6 +261,11 @@ function BranchSwitcher({ branches, selectedBranchId, onSelect, onBranchAdded })
 
 function Topbar({ tab, onAdd, onMenu, branches, selectedBranchId, onSelectBranch, onBranchAdded }) {
   const m = TAB_META[tab];
+  const branchName = branches.find(b => b.id === selectedBranchId)?.name;
+  const sub = m.sub ?? [
+    new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+    branchName ?? 'كل الفروع',
+  ].join(' · ');
   return (
     <div className="admin-topbar" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 26px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--white)', flex: '0 0 auto' }}>
       <button className="admin-menu-btn" onClick={onMenu} aria-label="فتح القائمة" style={{ width: 42, height: 42, borderRadius: 13, border: '1px solid var(--border-subtle)', background: 'var(--white)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
@@ -266,7 +273,7 @@ function Topbar({ tab, onAdd, onMenu, branches, selectedBranchId, onSelectBranch
       </button>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="admin-topbar-title" style={{ fontFamily: font, fontWeight: 800, fontSize: 21, color: 'var(--text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
-        <div className="admin-topbar-sub" style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>{m.sub}</div>
+        <div className="admin-topbar-sub" style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>{sub}</div>
       </div>
       <div className="admin-search" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-page)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '9px 16px', width: 240 }}>
         <Icon name="search" size={17} color="var(--text-muted)" />
@@ -1601,9 +1608,11 @@ function StaffTab() {
   const [created, setCreated] = useState(null);   // { staff, password }
 
   useEffect(() => {
+    // No demo fallback: an empty team must read as empty, not as four invented
+    // colleagues that vanish on the next reload.
     listStaff()
-      .then(rows => setStaff(rows.length ? rows : AS.staff))
-      .catch(e => { setError(e.message); setStaff(AS.staff); })
+      .then(setStaff)
+      .catch(e => setError(e.message || 'تعذّر تحميل فريق العمل.'))
       .finally(() => setLoading(false));
     listBranches().then(setBranches).catch(() => {});
     listRoles().then(setRoles).catch(() => {});
@@ -1933,10 +1942,15 @@ function AdminDashboard({ initialTab = 'agenda' }) {
 
   const visibleAppointments = selectedBranchId ? appointments.filter(a => a.branchId === selectedBranchId) : appointments;
 
+  // The badge on المواعيد used to read a hardcoded 24. It's the real count of today's
+  // live bookings now, and it disappears when there are none.
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayCount = visibleAppointments.filter(a => a.date === todayISO && a.status !== 'cancelled').length;
+
   return (
     <div style={{ position: 'relative', display: 'flex', height: '100%', background: 'var(--surface-page)', fontFamily: body, direction: 'rtl', overflow: 'hidden' }}>
       <style>{ADMIN_STYLE}</style>
-      <Rail tab={tab} setTab={setTab} open={navOpen} onClose={() => setNavOpen(false)} />
+      <Rail tab={tab} setTab={setTab} open={navOpen} onClose={() => setNavOpen(false)} todayCount={todayCount} />
       <button
         className={`admin-overlay${navOpen ? ' is-open' : ''}`}
         onClick={() => setNavOpen(false)}
