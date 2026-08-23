@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InstallApp from '../components/InstallApp.jsx';
-import Pricing from '../components/Pricing.jsx';
 
 const { Icon, Button, Card } = window.MeaadDesignSystem_54b82a;
 const font = 'var(--font-display)';
@@ -43,7 +42,7 @@ function Logo({ size = 40, dark }) {
   );
 }
 
-const NAV = [['المميزات', '#features'], ['كيف يعمل', '#how'], ['الأسعار', '#pricing'], ['الأرقام', '#stats'], ['تواصل معنا', '#footer']];
+const NAV = [['المميزات', '#features'], ['كيف يعمل', '#how'], ['الأرقام', '#stats'], ['تواصل معنا', '#footer']];
 
 function Nav() {
   const navigate = useNavigate();
@@ -285,7 +284,6 @@ export default function Landing() {
       <Hero />
       <Features />
       <How />
-      <Pricing />
       <Stats />
       <CtaBanner />
       <Footer />
